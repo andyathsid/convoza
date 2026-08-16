@@ -4,7 +4,7 @@
 
 Convoza is a real-time chat application for direct and group conversations. It supports media, replies, typing indicators, presence, delivery and read state, and full-text search.
 
-The frontend uses Next.js 16 and React 19. The API is Go Fiber. PostgreSQL stores user and authentication records, Firebase provides Authentication, Firestore, Realtime Database, and Storage. Typesense provides search.
+The frontend uses Next.js 16 and React 19. The API is Go Fiber. Firebase provides Authentication, Firestore, Realtime Database, and Storage. Typesense provides search.
 
 ## Architecture
 
@@ -12,7 +12,6 @@ The frontend uses Next.js 16 and React 19. The API is Go Fiber. PostgreSQL store
 flowchart LR
     Browser[Browser] --> Frontend[Next.js frontend]
     Frontend --> API[Go Fiber API]
-    API --> Postgres[(PostgreSQL)]
     Browser <--> Firebase[Firebase Auth, Firestore, RTDB, Storage]
     API --> Typesense[(Typesense)]
 ```
@@ -125,6 +124,5 @@ Implementation handoffs are collected in [docs/handoff](docs/handoff/), and proj
 
 - **Service account missing:** add the JSON file at both required paths and confirm each local environment file points to `./firebase-service-account.json`.
 - **Firebase values differ:** frontend web-app values and backend Firebase project settings must refer to the same Firebase project.
-- **Authentication sync fails after startup:** run the PostgreSQL migration command in Quick start.
 - **Browser reports a CORS error:** use `http://localhost:3001` for the frontend and keep `ALLOWED_ORIGINS` set to that address in `backend/.env`.
 - **Typesense is unavailable:** confirm that port 8108 is free and the Typesense container is running.
