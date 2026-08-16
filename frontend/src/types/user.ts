@@ -1,11 +1,9 @@
 export interface User {
   id: string;
   username: string;
-  email: string;
+  // Email is only populated for the authenticated account response.
+  email?: string;
   avatar: string;
-  created_at: string;
-  updated_at: string | null;
+  created_at?: string;
+  updated_at?: string | null;
 }
-
-// Alias for component compatibility
-export type UserType = User;

@@ -1,12 +1,10 @@
 import { create } from "zustand";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { api } from "@/lib/api";
 
 export interface Profile {
   username: string;
   avatar: string;
-  email: string;
 }
 
 interface ProfileStore {
@@ -69,19 +67,9 @@ export const useProfiles = create<ProfileStore>((set, get) => ({
             const nextProfile = {
               username: data.username || "",
               avatar: data.avatar || "",
-              email: data.email || "",
             };
-            const oldProfile = state.profiles.get(uid);
             profiles.set(uid, nextProfile);
             missing.delete(uid);
-
-            if (
-              !oldProfile ||
-              oldProfile.username !== nextProfile.username ||
-              oldProfile.avatar !== nextProfile.avatar
-            ) {
-              api.post(`/users/${uid}/reindex-search`).catch(() => {});
-            }
 
             return { profiles, loading, missing };
           });
@@ -121,7 +109,6 @@ export const useProfiles = create<ProfileStore>((set, get) => ({
   //         newProfiles.set(uid, {
   //           username: data.username || "",
   //           avatar: data.avatar || "",
-  //           email: data.email || "",
   //         });
   //         return { profiles: newProfiles };
   //       });

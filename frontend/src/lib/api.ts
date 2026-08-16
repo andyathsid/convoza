@@ -95,36 +95,3 @@ export const api = {
     return res.json();
   },
 };
-
-// Group member management API
-export const groupApi = {
-  async addMembers(chatId: string, userIds: string[]) {
-    return api.post(`/chat/${chatId}/members`, { userIds });
-  },
-
-  async removeMember(chatId: string, userId: string) {
-    return api.post(`/chat/${chatId}/members/${userId}/remove`);
-  },
-
-  async promoteMember(chatId: string, userId: string) {
-    return api.post(`/chat/${chatId}/members/${userId}/promote`);
-  },
-
-  async demoteMember(chatId: string, userId: string) {
-    return api.post(`/chat/${chatId}/members/${userId}/demote`);
-  },
-
-  async leaveGroup(chatId: string) {
-    return api.post(`/chat/${chatId}/leave`);
-  },
-
-  async renameGroup(chatId: string, groupName: string) {
-    return api.post(`/chat/${chatId}/rename`, { groupName });
-  },
-
-  async updateGroupAvatar(chatId: string, avatar: File) {
-    const body = new FormData();
-    body.set("avatar", avatar);
-    return api.postForm(`/chat/${chatId}/avatar`, body);
-  },
-};
