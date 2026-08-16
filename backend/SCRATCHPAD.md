@@ -1,0 +1,1 @@
+How do I incorporate this golang backend in a chat app where I use next js for frontend and firebase/firestore for real time data? I have to mention that book crud here is just an example and part of this project template. it will be removed or replaced if not needed. Lets say that go will be the one that has firebase admin sdk

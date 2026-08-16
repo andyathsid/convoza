@@ -9,18 +9,24 @@ import (
 	"log"
 
 	"cloud.google.com/go/firestore"
-	firebaseInit "github.com/andyathsid/backend/platform/firebase"
+	"github.com/andyathsid/backend/internal/platform/config"
+	firebaseInit "github.com/andyathsid/backend/internal/platform/firebase"
 	_ "github.com/joho/godotenv/autoload"
 )
 
 func main() {
 	ctx := context.Background()
 
-	if err := firebaseInit.InitFirebase(); err != nil {
+	firebaseConfig, err := config.LoadFirebase()
+	if err != nil {
+		log.Fatal(err)
+	}
+	firebaseApp, err := firebaseInit.NewApp(ctx, firebaseConfig)
+	if err != nil {
 		log.Fatalf("firebase init failed: %v", err)
 	}
 
-	fsClient, err := firebaseInit.App.Firestore(ctx)
+	fsClient, err := firebaseApp.Firestore(ctx)
 	if err != nil {
 		log.Fatalf("firestore init failed: %v", err)
 	}
@@ -33,35 +39,32 @@ func main() {
 
 	log.Printf("Found %d chat documents to clean", len(docs))
 
-	batch := fsClient.Batch()
-	count := 0
+	refs := make([]*firestore.DocumentRef, 0, len(docs))
 	for _, doc := range docs {
 		data := doc.Data()
 		if _, exists := data["participantProfiles"]; !exists {
 			continue
 		}
+		refs = append(refs, doc.Ref)
+	}
 
-		batch.Update(doc.Ref, []firestore.Update{
-			{Path: "participantProfiles", Value: firestore.Delete},
-		})
-		count++
-
-		if count%400 == 0 {
-			_, err = batch.Commit(ctx)
-			if err != nil {
-				log.Fatalf("batch commit failed: %v", err)
+	for start := 0; start < len(refs); start += 400 {
+		end := min(start+400, len(refs))
+		err = fsClient.RunTransaction(ctx, func(_ context.Context, transaction *firestore.Transaction) error {
+			for _, ref := range refs[start:end] {
+				if err := transaction.Update(ref, []firestore.Update{
+					{Path: "participantProfiles", Value: firestore.Delete},
+				}); err != nil {
+					return err
+				}
 			}
-			batch = fsClient.Batch()
-			log.Printf("Cleaned %d chats...", count)
-		}
-	}
-
-	if count%400 != 0 {
-		_, err = batch.Commit(ctx)
+			return nil
+		})
 		if err != nil {
-			log.Fatalf("final batch commit failed: %v", err)
+			log.Fatalf("clean chats %d-%d: %v", start+1, end, err)
 		}
+		log.Printf("Cleaned %d chats...", end)
 	}
 
-	log.Printf("Successfully removed participantProfiles from %d chat documents", count)
+	log.Printf("Successfully removed participantProfiles from %d chat documents", len(refs))
 }

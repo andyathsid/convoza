@@ -8,7 +8,8 @@ import (
 	"log"
 
 	"cloud.google.com/go/firestore"
-	firebaseInit "github.com/andyathsid/backend/platform/firebase"
+	"github.com/andyathsid/backend/internal/platform/config"
+	firebaseInit "github.com/andyathsid/backend/internal/platform/firebase"
 	_ "github.com/joho/godotenv/autoload"
 	"google.golang.org/api/iterator"
 )
@@ -21,10 +22,15 @@ type unreadState struct {
 
 func main() {
 	ctx := context.Background()
-	if err := firebaseInit.InitFirebase(); err != nil {
+	firebaseConfig, err := config.LoadFirebase()
+	if err != nil {
 		log.Fatal(err)
 	}
-	client, err := firebaseInit.App.Firestore(ctx)
+	firebaseApp, err := firebaseInit.NewApp(ctx, firebaseConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	client, err := firebaseApp.Firestore(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

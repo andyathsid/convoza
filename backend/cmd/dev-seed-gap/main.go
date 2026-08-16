@@ -24,7 +24,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
-	firebaseInit "github.com/andyathsid/backend/platform/firebase"
+	"github.com/andyathsid/backend/internal/platform/config"
+	firebaseInit "github.com/andyathsid/backend/internal/platform/firebase"
 	"github.com/google/uuid"
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -69,13 +70,17 @@ func main() {
 	// Parse flags
 	cleanFirst := len(os.Args) > 1 && os.Args[1] == "--clean"
 
-	// Init Firebase
-	if err := firebaseInit.InitFirebase(); err != nil {
+	firebaseConfig, err := config.LoadFirebase()
+	if err != nil {
+		log.Fatalf("load configuration: %v", err)
+	}
+	firebaseApp, err := firebaseInit.NewApp(ctx, firebaseConfig)
+	if err != nil {
 		log.Fatalf("firebase init failed: %v", err)
 	}
 
 	// Init Firestore
-	fsClient, err := firebaseInit.App.Firestore(ctx)
+	fsClient, err := firebaseApp.Firestore(ctx)
 	if err != nil {
 		log.Fatalf("firestore init failed: %v", err)
 	}
@@ -108,7 +113,10 @@ func main() {
 	// Step 1: Optionally clean previous gap-test messages
 	if cleanFirst {
 		log.Println("=== Step 1: Cleaning all GAP-TEST messages (--clean flag) ===")
-		cleaned := cleanupGapTestMessages(ctx, fsClient, chatID)
+		cleaned, err := cleanupGapTestMessages(ctx, fsClient, chatID)
+		if err != nil {
+			log.Fatalf("remove GAP-TEST messages: %v", err)
+		}
 		log.Printf("Removed %d GAP-TEST messages", cleaned)
 	} else {
 		log.Println("=== Step 1: Skipping cleanup (use --clean to reset) ===")
@@ -163,22 +171,26 @@ func main() {
 }
 
 // cleanupGapTestMessages removes all GAP-TEST messages from Firestore.
-func cleanupGapTestMessages(ctx context.Context, fs *firestore.Client, chatID string) int {
+func cleanupGapTestMessages(ctx context.Context, fs *firestore.Client, chatID string) (int, error) {
 	msgDocs, _ := fs.Collection("chats").Doc(chatID).Collection("messages").
 		Where("content", ">=", "[GAP-TEST").
 		Where("content", "<", "[GAP-TEST~").
 		Documents(ctx).GetAll()
 
-	batch := fs.Batch()
-	count := 0
-	for _, doc := range msgDocs {
-		batch.Delete(doc.Ref)
-		count++
+	for start := 0; start < len(msgDocs); start += 400 {
+		end := min(start+400, len(msgDocs))
+		if err := fs.RunTransaction(ctx, func(_ context.Context, transaction *firestore.Transaction) error {
+			for _, doc := range msgDocs[start:end] {
+				if err := transaction.Delete(doc.Ref); err != nil {
+					return err
+				}
+			}
+			return nil
+		}); err != nil {
+			return start, err
+		}
 	}
-	if count > 0 {
-		_, _ = batch.Commit(ctx)
-	}
-	return count
+	return len(msgDocs), nil
 }
 
 // countGapTestMessages counts existing GAP-TEST messages for sequential numbering.

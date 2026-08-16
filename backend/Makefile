@@ -2,7 +2,7 @@
 
 APP_NAME = apiserver
 BUILD_DIR = $(PWD)/build
-MIGRATIONS_FOLDER = $(PWD)/platform/migrations
+MIGRATIONS_FOLDER = $(PWD)/internal/platform/migrations
 DATABASE_URL = postgres://postgres:password@cgapp-postgres/postgres?sslmode=disable
 
 clean:
@@ -22,7 +22,7 @@ test: clean critic security lint
 	go tool cover -func=cover.out
 
 build: test
-	CGO_ENABLED=0 go build -ldflags="-w -s" -o $(BUILD_DIR)/$(APP_NAME) main.go
+	CGO_ENABLED=0 go build -ldflags="-w -s" -o $(BUILD_DIR)/$(APP_NAME) ./cmd/app
 
 run: swag build
 	$(BUILD_DIR)/$(APP_NAME)
@@ -82,4 +82,4 @@ docker.stop.redis:
 	docker stop cgapp-redis
 
 swag:
-	swag init
+	swag init -g cmd/app/main.go

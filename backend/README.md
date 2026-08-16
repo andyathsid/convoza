@@ -2,16 +2,15 @@
 
 For first-time local setup, use the [root README](../README.md).
 
-This Go Fiber backend owns durable mutations and business-rule enforcement. This backend uses repository pattern that keeps HTTP concerns, application rules, and persistence concerns separate:
+This Go Fiber backend owns durable mutations and business-rule enforcement. Its clean architecture keeps dependencies pointed inward:
 
-- `app/models` defines chat, message, user, and authentication data.
-- `app/controllers` parses HTTP requests and shapes HTTP responses.
-- `app/services` owns business rules and cross-resource workflows.
-- `app/repository` defines persistence interfaces. PostgreSQL implementations satisfy the user-store interfaces.
-- `pkg` contains application wiring: routes, middleware, configuration, and utilities.
-- `platform` integrates PostgreSQL, Firebase Admin, Firestore, Storage validation, and Typesense.
+- `internal/domain` defines transport-neutral entities and repository contracts.
+- `internal/app` owns use cases and ports for identity, storage, membership, and search.
+- `internal/http` owns Fiber handlers, middleware, DTOs, and response mapping.
+- `internal/platform` implements PostgreSQL, Firebase, Firestore, configuration, migrations, and Typesense.
+- `cmd/app` is the composition root, and every operational command uses the same internal adapters.
 
-Firebase Admin authenticates backend access. The Firestore wrapper owns chat and message persistence, while the PostgreSQL user store resolves participants and maintains user records. Storage validation protects uploaded media before it is persisted. Route ownership lives in `pkg/routes`, and Swagger is served at `http://localhost:5000/swagger/index.html`. When `TYPESENSE_API_KEY` is set, write-time indexing keeps Typesense collections current.
+Firebase Admin authenticates backend access. Firestore owns chat and message persistence, PostgreSQL owns users, and Storage validation protects uploaded media before it is persisted. Swagger is served at `http://localhost:5000/swagger/index.html`. When `TYPESENSE_API_KEY` is set, write-time indexing keeps Typesense collections current.
 
 ## Configuration
 
@@ -34,23 +33,24 @@ TYPESENSE_API_KEY=
 ```
 
 `DB_HOST` remains `localhost` for native execution. Compose supplies `db` for the containerized API. Use `xyz` as the API key for the local Compose Typesense service.
+`SERVER_READ_TIMEOUT` is measured in seconds. `DB_MAX_LIFETIME_CONNECTIONS` is measured in minutes. Firestore-only operational commands require only `FIREBASE_PROJECT_ID` and `FIREBASE_SERVICE_ACCOUNT_PATH`; commands that also use PostgreSQL or Realtime Database validate those settings separately.
 
 ## Local commands
 
-Use Air to run the backend development server with hot reload. Use `go run .` when hot reload is not needed.
+Use Air to run the backend development server with hot reload. Use `go run ./cmd/app` when hot reload is not needed.
 
 ```bash
-go run .
+go run ./cmd/app
 air
-go build -o build/apiserver .
-go test ./app/services/...
-go test ./pkg/routes/...
+go build -o build/apiserver ./cmd/app
+go test ./internal/app/...
+go test ./internal/http/...
 ```
 
 Apply migrations against the local Compose database with:
 
 ```bash
-migrate -path platform/migrations -database "postgres://postgres:password@localhost:5432/chatapp?sslmode=disable" up
+migrate -path internal/platform/migrations -database "postgres://postgres:password@localhost:5432/chatapp?sslmode=disable" up
 ```
 
 Development fixtures are available through `go run ./cmd/dev-seed` and `go run ./cmd/dev-seed-gap`. The programs under `cmd/maintenance/` repair existing data and are not part of first-time setup.

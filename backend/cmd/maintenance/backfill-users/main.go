@@ -10,30 +10,36 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
-	"github.com/andyathsid/backend/platform/database"
-	"github.com/andyathsid/backend/platform/database/repositories"
-	firebaseInit "github.com/andyathsid/backend/platform/firebase"
+	"github.com/andyathsid/backend/internal/platform/config"
+	"github.com/andyathsid/backend/internal/platform/database"
+	firebaseInit "github.com/andyathsid/backend/internal/platform/firebase"
 	_ "github.com/joho/godotenv/autoload"
 )
 
 func main() {
 	ctx := context.Background()
 
-	if err := firebaseInit.InitFirebase(); err != nil {
+	cfg, err := config.LoadDatabaseAndFirebase()
+	if err != nil {
+		log.Fatalf("load configuration: %v", err)
+	}
+	firebaseApp, err := firebaseInit.NewApp(ctx, cfg.Firebase)
+	if err != nil {
 		log.Fatalf("firebase init failed: %v", err)
 	}
 
-	fsClient, err := firebaseInit.App.Firestore(ctx)
+	fsClient, err := firebaseApp.Firestore(ctx)
 	if err != nil {
 		log.Fatalf("firestore init failed: %v", err)
 	}
 	defer fsClient.Close()
 
-	db, err := database.OpenDBConnection()
+	db, err := database.Open(cfg.Database)
 	if err != nil {
 		log.Fatalf("database connection failed: %v", err)
 	}
-	userRepo := repositories.NewUserRepositorySQL(db)
+	defer db.Close()
+	userRepo := database.NewUserRepositorySQL(db)
 
 	users, err := userRepo.GetAll(ctx, "")
 	if err != nil {
@@ -42,33 +48,26 @@ func main() {
 
 	log.Printf("Found %d users to sync to Firestore", len(users))
 
-	batch := fsClient.Batch()
-	count := 0
-	for _, u := range users {
-		batch.Set(fsClient.Collection("users").Doc(u.ID), map[string]interface{}{
-			"username":  u.Username,
-			"email":     u.Email,
-			"avatar":    u.Avatar,
-			"updatedAt": time.Now(),
-		}, firestore.MergeAll)
-		count++
-
-		if count%400 == 0 {
-			_, err = batch.Commit(ctx)
-			if err != nil {
-				log.Fatalf("batch commit failed: %v", err)
+	for start := 0; start < len(users); start += 400 {
+		end := min(start+400, len(users))
+		err = fsClient.RunTransaction(ctx, func(_ context.Context, transaction *firestore.Transaction) error {
+			for _, user := range users[start:end] {
+				if err := transaction.Set(fsClient.Collection("users").Doc(user.ID), map[string]interface{}{
+					"username":  user.Username,
+					"email":     user.Email,
+					"avatar":    user.Avatar,
+					"updatedAt": time.Now(),
+				}, firestore.MergeAll); err != nil {
+					return err
+				}
 			}
-			batch = fsClient.Batch()
-			log.Printf("Committed %d user writes...", count)
-		}
-	}
-
-	if count%400 != 0 {
-		_, err = batch.Commit(ctx)
+			return nil
+		})
 		if err != nil {
-			log.Fatalf("final batch commit failed: %v", err)
+			log.Fatalf("sync users %d-%d: %v", start+1, end, err)
 		}
+		log.Printf("Committed %d user writes...", end)
 	}
 
-	log.Printf("Successfully synced %d users to Firestore users/ collection", count)
+	log.Printf("Successfully synced %d users to Firestore users/ collection", len(users))
 }

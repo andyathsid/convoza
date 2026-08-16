@@ -19,11 +19,11 @@ import (
 
 	"cloud.google.com/go/firestore"
 	firebaseAuth "firebase.google.com/go/v4/auth"
-	"github.com/andyathsid/backend/app/models"
-	apprepo "github.com/andyathsid/backend/app/repository"
-	"github.com/andyathsid/backend/platform/database"
-	"github.com/andyathsid/backend/platform/database/repositories"
-	firebaseInit "github.com/andyathsid/backend/platform/firebase"
+	application "github.com/andyathsid/backend/internal/app"
+	"github.com/andyathsid/backend/internal/domain"
+	"github.com/andyathsid/backend/internal/platform/config"
+	"github.com/andyathsid/backend/internal/platform/database"
+	firebaseInit "github.com/andyathsid/backend/internal/platform/firebase"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/joho/godotenv/autoload"
@@ -135,37 +135,49 @@ func generateMessages(n int, sender1ID, sender1Name, sender2ID, sender2Name stri
 func main() {
 	ctx := context.Background()
 
-	// Init Firebase
-	if err := firebaseInit.InitFirebase(); err != nil {
+	cfg, err := config.LoadDatabaseAndFirebase()
+	if err != nil {
+		log.Fatalf("load configuration: %v", err)
+	}
+	if err := cfg.Firebase.ValidateDatabase(); err != nil {
+		log.Fatalf("load configuration: %v", err)
+	}
+	firebaseApp, err := firebaseInit.NewApp(ctx, cfg.Firebase)
+	if err != nil {
 		log.Fatalf("firebase init failed: %v", err)
 	}
 
 	// Init Firestore
-	fsClient, err := firebaseInit.App.Firestore(ctx)
+	fsClient, err := firebaseApp.Firestore(ctx)
 	if err != nil {
 		log.Fatalf("firestore init failed: %v", err)
 	}
 	defer fsClient.Close()
 
 	// Init Auth client
-	authClient, err := firebaseInit.App.Auth(ctx)
+	authClient, err := firebaseApp.Auth(ctx)
 	if err != nil {
 		log.Fatalf("auth client init failed: %v", err)
 	}
 
 	// Init PostgreSQL (users only)
-	db, err := database.OpenDBConnection()
+	db, err := database.Open(cfg.Database)
 	if err != nil {
 		log.Fatalf("database connection failed: %v", err)
 	}
-	userRepo := repositories.NewUserRepositorySQL(db)
+	defer db.Close()
+	userRepo := database.NewUserRepositorySQL(db)
 
 	allUsers := append(dummyAccounts, fakeUsers...)
 	rng := rand.New(rand.NewSource(42))
 
 	// Step 0: Clean up old seed data (idempotent)
 	log.Println("=== Step 0: Cleaning up old seed data ===")
-	cleanupSeedData(ctx, authClient, fsClient, db, allUsers, firebaseInit.RTDBMembershipMirror)
+	membershipMirror, err := firebaseInit.NewMembershipMirror(ctx, firebaseApp)
+	if err != nil {
+		log.Fatalf("RTDB membership init failed: %v", err)
+	}
+	cleanupSeedData(ctx, authClient, fsClient, db, allUsers, membershipMirror)
 
 	// Step 1: Create users in Firebase Auth + PostgreSQL + Firestore
 	log.Println("=== Step 1: Creating users ===")
@@ -180,7 +192,7 @@ func main() {
 	log.Println("=== Step 2: Creating Alice ↔ Bob chat (150 messages) ===")
 	alice := dummyAccounts[0]
 	bob := dummyAccounts[1]
-	chatID := ensureChat(ctx, fsClient, firebaseInit.RTDBMembershipMirror, alice.UID, alice.Username, bob.UID, bob.Username, false, "")
+	chatID := ensureChat(ctx, fsClient, membershipMirror, alice.UID, alice.Username, bob.UID, bob.Username, false, "")
 	bobMsgs := generateMessages(150, alice.UID, "Alice", bob.UID, "Bob")
 	ensureMessages(ctx, fsClient, chatID, bobMsgs)
 	log.Printf("Alice ↔ Bob chat: 150 messages")
@@ -189,7 +201,7 @@ func main() {
 	log.Println("=== Step 3: Creating Alice ↔ fake user chats ===")
 	for _, fu := range fakeUsers {
 		msgCount := 5 + rng.Intn(26) // 5 to 30
-		fuChatID := ensureChat(ctx, fsClient, firebaseInit.RTDBMembershipMirror, alice.UID, alice.Username, fu.UID, fu.Username, false, "")
+		fuChatID := ensureChat(ctx, fsClient, membershipMirror, alice.UID, alice.Username, fu.UID, fu.Username, false, "")
 		fuMsgs := generateMessages(msgCount, alice.UID, "Alice", fu.UID, fu.Username)
 		ensureMessages(ctx, fsClient, fuChatID, fuMsgs)
 	}
@@ -201,7 +213,7 @@ func main() {
 }
 
 // cleanupSeedData removes all old seed data to ensure idempotency.
-func cleanupSeedData(ctx context.Context, auth *firebaseAuth.Client, fs *firestore.Client, db *sqlx.DB, users []seedUser, mirror firebaseInit.MembershipMirror) {
+func cleanupSeedData(ctx context.Context, auth *firebaseAuth.Client, fs *firestore.Client, db *sqlx.DB, users []seedUser, mirror application.MembershipMirror) {
 	// 1. Delete Firestore chats where any seed user is a participant
 	for _, u := range users {
 		docs, _ := fs.Collection("chats").Where("participants", "array-contains", u.UID).Documents(ctx).GetAll()
@@ -220,15 +232,20 @@ func cleanupSeedData(ctx context.Context, auth *firebaseAuth.Client, fs *firesto
 			// Firestore does not cascade document deletion into subcollections.
 			msgDocs, _ := doc.Ref.Collection("messages").Documents(ctx).GetAll()
 			memberDocs, _ := doc.Ref.Collection("members").Documents(ctx).GetAll()
-			batch := fs.Batch()
-			for _, msg := range msgDocs {
-				batch.Delete(msg.Ref)
-			}
-			for _, member := range memberDocs {
-				batch.Delete(member.Ref)
-			}
-			batch.Delete(doc.Ref)
-			if _, err := batch.Commit(ctx); err != nil {
+			err := fs.RunTransaction(ctx, func(_ context.Context, transaction *firestore.Transaction) error {
+				for _, msg := range msgDocs {
+					if err := transaction.Delete(msg.Ref); err != nil {
+						return err
+					}
+				}
+				for _, member := range memberDocs {
+					if err := transaction.Delete(member.Ref); err != nil {
+						return err
+					}
+				}
+				return transaction.Delete(doc.Ref)
+			})
+			if err != nil {
 				log.Printf("  Warning: could not delete seed chat %s: %v", doc.Ref.ID, err)
 			}
 		}
@@ -271,8 +288,8 @@ func ensureFirebaseUser(ctx context.Context, auth *firebaseAuth.Client, u seedUs
 }
 
 // ensurePGUser upserts user to PostgreSQL.
-func ensurePGUser(ctx context.Context, repo apprepo.UserRepository, u seedUser) {
-	err := repo.Upsert(ctx, &models.User{
+func ensurePGUser(ctx context.Context, repo domain.UserRepository, u seedUser) {
+	err := repo.Upsert(ctx, &domain.User{
 		ID:       u.UID,
 		Email:    u.Email,
 		Username: u.Username,
@@ -298,7 +315,7 @@ func ensureFirestoreUser(ctx context.Context, fs *firestore.Client, u seedUser) 
 }
 
 // ensureChat creates a chat in Firestore if not exists. Returns chatID.
-func ensureChat(ctx context.Context, fs *firestore.Client, mirror firebaseInit.MembershipMirror, user1, user1Name, user2, user2Name string, isGroup bool, groupName string) string {
+func ensureChat(ctx context.Context, fs *firestore.Client, mirror application.MembershipMirror, user1, user1Name, user2, user2Name string, isGroup bool, groupName string) string {
 	// Check for existing DM in Firestore
 	docs, _ := fs.Collection("chats").
 		Where("participants", "array-contains", user1).
@@ -341,34 +358,38 @@ func ensureChat(ctx context.Context, fs *firestore.Client, mirror firebaseInit.M
 func ensureSeedMembership(
 	ctx context.Context,
 	fs *firestore.Client,
-	mirror firebaseInit.MembershipMirror,
+	mirror application.MembershipMirror,
 	chatID string,
 	creatorID string,
 	memberID string,
 ) {
 	now := time.Now()
-	batch := fs.Batch()
-	for userID, role := range map[string]string{
-		creatorID: "creator",
-		memberID:  "member",
-	} {
-		batch.Set(
-			fs.Collection("chats").Doc(chatID).Collection("members").Doc(userID),
-			map[string]interface{}{
-				"chatId":                chatID,
-				"uid":                   userID,
-				"role":                  role,
-				"joinedAt":              now,
-				"leftAt":                nil,
-				"removedBy":             nil,
-				"hasUnread":             false,
-				"unreadCount":           0,
-				"lastUnreadAt":          nil,
-				"latestUnreadMessageId": nil,
-			},
-		)
-	}
-	if _, err := batch.Commit(ctx); err != nil {
+	err := fs.RunTransaction(ctx, func(_ context.Context, transaction *firestore.Transaction) error {
+		for userID, role := range map[string]string{
+			creatorID: "creator",
+			memberID:  "member",
+		} {
+			if err := transaction.Set(
+				fs.Collection("chats").Doc(chatID).Collection("members").Doc(userID),
+				map[string]interface{}{
+					"chatId":                chatID,
+					"uid":                   userID,
+					"role":                  role,
+					"joinedAt":              now,
+					"leftAt":                nil,
+					"removedBy":             nil,
+					"hasUnread":             false,
+					"unreadCount":           0,
+					"lastUnreadAt":          nil,
+					"latestUnreadMessageId": nil,
+				},
+			); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
 		log.Fatalf("create seed member documents for chat %s: %v", chatID, err)
 	}
 
