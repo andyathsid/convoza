@@ -43,30 +43,6 @@ func (h *ChatController) GetSingleChat(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"error": false, "chat": chatDTO(*chat)})
 }
 
-func (h *ChatController) GetAllUsers(c *fiber.Ctx) error {
-	userID, err := authenticatedUserID(c)
-	if err != nil {
-		return writeError(c, err)
-	}
-	users, err := h.service.GetAllUsers(c.UserContext(), userID)
-	if err != nil {
-		return writeError(c, err)
-	}
-	return c.JSON(fiber.Map{"error": false, "users": usersDTO(users)})
-}
-
-func (h *ChatController) SearchUsers(c *fiber.Ctx) error {
-	userID, err := authenticatedUserID(c)
-	if err != nil {
-		return writeError(c, err)
-	}
-	users, err := h.service.SearchUsers(c.UserContext(), userID, c.Query("q"))
-	if err != nil {
-		return writeError(c, err)
-	}
-	return c.JSON(fiber.Map{"error": false, "users": usersDTO(users)})
-}
-
 func (h *ChatController) AddMembers(c *fiber.Ctx) error {
 	userID, err := authenticatedUserID(c)
 	if err != nil {
@@ -131,11 +107,6 @@ func (h *ChatController) RenameGroup(c *fiber.Ctx) error {
 		return writeError(c, err)
 	}
 	return c.JSON(fiber.Map{"error": false, "msg": "Group renamed successfully"})
-}
-
-func (h *ChatController) ReindexUserSearch(c *fiber.Ctx) error {
-	h.service.ReindexUserSearch(c.UserContext(), c.Params("userId"))
-	return c.JSON(fiber.Map{"error": false, "msg": "reindex triggered"})
 }
 
 func (h *ChatController) UpdateGroupAvatar(c *fiber.Ctx) error {

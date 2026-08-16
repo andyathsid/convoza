@@ -36,7 +36,4 @@ func PrivateRoutes(
 
 	// Users
 	route.Post("/users/avatar", authenticated, auth.UpdateAvatar)
-	route.Get("/users", authenticated, chat.GetAllUsers)
-	route.Get("/users/search", authenticated, chat.SearchUsers)
-	route.Post("/users/:userId/reindex-search", authenticated, chat.ReindexUserSearch)
 }

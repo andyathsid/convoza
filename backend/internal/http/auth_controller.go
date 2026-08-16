@@ -15,7 +15,7 @@ func NewAuthController(service *services.AuthService) *AuthController {
 	return &AuthController{service: service}
 }
 
-// SyncUser syncs Firebase user to PostgreSQL.
+// SyncUser synchronizes a verified Firebase account with its public profile.
 func (h *AuthController) SyncUser(c *fiber.Ctx) error {
 	// Get Firebase token from Authorization header
 	authHeader := c.Get("Authorization")
@@ -37,12 +37,11 @@ func (h *AuthController) SyncUser(c *fiber.Ctx) error {
 
 	// Build optional sync opts from frontend-provided fields
 	var opts *services.AuthSyncOpts
-	if input.Username != "" || input.Avatar != "" || input.Email != "" {
+	if input.Username != "" || input.Avatar != "" {
 		opts = &services.AuthSyncOpts{
 			Username:   input.Username,
 			Avatar:     input.Avatar,
 			AvatarPath: input.AvatarPath,
-			Email:      input.Email,
 		}
 	}
 

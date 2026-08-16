@@ -21,12 +21,6 @@ func TestLoadBindsEnvironmentAndAppliesDefaults(t *testing.T) {
 	if cfg.Server.ReadTimeout != 60*time.Second {
 		t.Fatalf("expected a 60-second read timeout, got %s", cfg.Server.ReadTimeout)
 	}
-	if cfg.Database.MaxOpen != 100 || cfg.Database.MaxIdle != 10 {
-		t.Fatalf("unexpected database pool defaults: %#v", cfg.Database)
-	}
-	if cfg.Database.MaxLifetime != 2*time.Minute {
-		t.Fatalf("expected a two-minute database lifetime, got %s", cfg.Database.MaxLifetime)
-	}
 	if cfg.Firebase.ProjectID != "chat-project" {
 		t.Fatalf("expected the explicitly bound Firebase project, got %q", cfg.Firebase.ProjectID)
 	}
@@ -40,10 +34,6 @@ func TestLoadRejectsInvalidSemanticValues(t *testing.T) {
 		message string
 	}{
 		{name: "missing project", key: "FIREBASE_PROJECT_ID", value: "", message: "FIREBASE_PROJECT_ID"},
-		{name: "non-numeric database port", key: "DB_PORT", value: "postgres", message: "DB_PORT"},
-		{name: "out-of-range database port", key: "DB_PORT", value: "70000", message: "DB_PORT"},
-		{name: "idle pool exceeds open pool", key: "DB_MAX_IDLE_CONNECTIONS", value: "101", message: "DB_MAX_IDLE_CONNECTIONS"},
-		{name: "zero open pool", key: "DB_MAX_CONNECTIONS", value: "0", message: "DB_MAX_CONNECTIONS"},
 		{name: "firebase URL has no host", key: "FIREBASE_DATABASE_URL", value: "https:///database", message: "FIREBASE_DATABASE_URL"},
 		{name: "firebase URL has invalid scheme", key: "FIREBASE_DATABASE_URL", value: "ftp://chat.example.test", message: "must use http or https"},
 	}
@@ -92,39 +82,14 @@ func TestLoadFirebaseDoesNotRequireUnrelatedServices(t *testing.T) {
 	}
 }
 
-func TestLoadDatabaseAndFirebaseDoesNotRequireServerOrFirebaseOptionalServices(t *testing.T) {
-	clearSupportedEnvironment(t)
-	setDatabaseEnvironment(t)
-	t.Setenv("FIREBASE_PROJECT_ID", "chat-project")
-	t.Setenv("FIREBASE_SERVICE_ACCOUNT_PATH", "service.json")
-
-	cfg, err := LoadDatabaseAndFirebase()
-	if err != nil {
-		t.Fatalf("load database and Firebase configuration: %v", err)
-	}
-	if cfg.Database.Port != "5432" || cfg.Firebase.ProjectID != "chat-project" {
-		t.Fatalf("unexpected scoped configuration: %#v", cfg)
-	}
-}
-
 func setValidEnvironment(t *testing.T) {
 	t.Helper()
 	clearSupportedEnvironment(t)
-	setDatabaseEnvironment(t)
 	t.Setenv("FIREBASE_PROJECT_ID", "chat-project")
 	t.Setenv("FIREBASE_SERVICE_ACCOUNT_PATH", "service.json")
 	t.Setenv("FIREBASE_DATABASE_URL", "https://chat.example.test")
 	t.Setenv("FIREBASE_STORAGE_BUCKET", "chat.example.test")
 	t.Setenv("TYPESENSE_API_KEY", "")
-}
-
-func setDatabaseEnvironment(t *testing.T) {
-	t.Helper()
-	t.Setenv("DB_HOST", "db")
-	t.Setenv("DB_PORT", "5432")
-	t.Setenv("DB_USER", "chat")
-	t.Setenv("DB_PASSWORD", "secret")
-	t.Setenv("DB_NAME", "chat")
 }
 
 func clearSupportedEnvironment(t *testing.T) {

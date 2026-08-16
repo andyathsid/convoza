@@ -11,7 +11,6 @@ import (
 	application "github.com/andyathsid/backend/internal/app"
 	transport "github.com/andyathsid/backend/internal/http"
 	"github.com/andyathsid/backend/internal/platform/config"
-	"github.com/andyathsid/backend/internal/platform/database"
 	firebaseplatform "github.com/andyathsid/backend/internal/platform/firebase"
 	"github.com/andyathsid/backend/internal/platform/firestore"
 	"github.com/andyathsid/backend/internal/platform/search"
@@ -23,7 +22,7 @@ import (
 
 // @title Chat App API
 // @version 1.0
-// @description Chat App API with Firebase Auth and PostgreSQL.
+// @description Chat App API with Firebase Auth and Firestore.
 // @BasePath /api
 // @securityDefinitions.apikey ApiKeyAuth
 // @in header
@@ -48,12 +47,6 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("initialize Firestore: %w", err)
 	}
 	defer store.Close()
-	db, err := database.Open(cfg.Database)
-	if err != nil {
-		return fmt.Errorf("connect PostgreSQL: %w", err)
-	}
-	defer db.Close()
-	users := database.NewUserRepositorySQL(db)
 	var indexer application.SearchIndexer = application.NopSearchIndexer{}
 	if cfg.Search.APIKey != "" {
 		client := search.NewTypesenseClient(cfg.Search)
@@ -63,7 +56,7 @@ func run(ctx context.Context) error {
 		indexer = search.NewIndexer(search.NewSyncService(client), store, store)
 	}
 	services := application.NewServices(application.Dependencies{
-		Users: users, Profiles: store, Chats: store, Messages: store,
+		Users: store, Profiles: store, Chats: store, Messages: store,
 		Identity: firebaseClients.Identity, Search: indexer,
 		Membership: firebaseClients.Membership, Storage: firebaseClients.Storage,
 	})

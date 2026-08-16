@@ -9,7 +9,6 @@ import (
 
 type syncUserRequest struct {
 	FirebaseUID string `json:"firebase_uid"`
-	Email       string `json:"email"`
 	Username    string `json:"username"`
 	Avatar      string `json:"avatar"`
 	AvatarPath  string `json:"avatarPath"`
@@ -63,6 +62,12 @@ type userResponse struct {
 	UpdatedAt *time.Time `json:"updated_at"`
 }
 
+type publicUserResponse struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Avatar   string `json:"avatar"`
+}
+
 func userDTO(user domain.User) userResponse {
 	return userResponse{ID: user.ID, Email: user.Email, Username: user.Username, Avatar: user.Avatar, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt}
 }
@@ -73,26 +78,36 @@ func usersDTO(users []domain.User) []userResponse {
 	}
 	return result
 }
+func publicUserDTO(user domain.User) publicUserResponse {
+	return publicUserResponse{ID: user.ID, Username: user.Username, Avatar: user.Avatar}
+}
+func publicUsersDTO(users []domain.User) []publicUserResponse {
+	result := make([]publicUserResponse, len(users))
+	for i, user := range users {
+		result[i] = publicUserDTO(user)
+	}
+	return result
+}
 
 type messageResponse struct {
-	ID            string           `json:"id"`
-	ChatID        string           `json:"chatId"`
-	SenderID      string           `json:"senderId"`
-	Content       string           `json:"content"`
-	ReplyToID     *string          `json:"replyToId"`
-	MediaURL      string           `json:"mediaUrl,omitempty"`
-	MediaPath     string           `json:"mediaPath,omitempty"`
-	MediaType     string           `json:"mediaType,omitempty"`
-	MediaWidth    int              `json:"mediaWidth,omitempty"`
-	MediaHeight   int              `json:"mediaHeight,omitempty"`
-	ThumbnailURL  string           `json:"thumbnailUrl,omitempty"`
-	ThumbnailPath string           `json:"thumbnailPath,omitempty"`
-	DocumentName  string           `json:"documentName,omitempty"`
-	GroupID       string           `json:"groupId,omitempty"`
-	GroupIndex    int              `json:"groupIndex,omitempty"`
-	CreatedAt     time.Time        `json:"createdAt"`
-	Sender        *userResponse    `json:"sender,omitempty"`
-	ReplyTo       *messageResponse `json:"replyTo,omitempty"`
+	ID            string              `json:"id"`
+	ChatID        string              `json:"chatId"`
+	SenderID      string              `json:"senderId"`
+	Content       string              `json:"content"`
+	ReplyToID     *string             `json:"replyToId"`
+	MediaURL      string              `json:"mediaUrl,omitempty"`
+	MediaPath     string              `json:"mediaPath,omitempty"`
+	MediaType     string              `json:"mediaType,omitempty"`
+	MediaWidth    int                 `json:"mediaWidth,omitempty"`
+	MediaHeight   int                 `json:"mediaHeight,omitempty"`
+	ThumbnailURL  string              `json:"thumbnailUrl,omitempty"`
+	ThumbnailPath string              `json:"thumbnailPath,omitempty"`
+	DocumentName  string              `json:"documentName,omitempty"`
+	GroupID       string              `json:"groupId,omitempty"`
+	GroupIndex    int                 `json:"groupIndex,omitempty"`
+	CreatedAt     time.Time           `json:"createdAt"`
+	Sender        *publicUserResponse `json:"sender,omitempty"`
+	ReplyTo       *messageResponse    `json:"replyTo,omitempty"`
 }
 
 func messageDTO(message *domain.Message) *messageResponse {
@@ -101,23 +116,23 @@ func messageDTO(message *domain.Message) *messageResponse {
 	}
 	result := &messageResponse{ID: message.ID, ChatID: message.ChatID, SenderID: message.SenderID, Content: message.Content, ReplyToID: message.ReplyToID, MediaURL: message.MediaURL, MediaPath: message.MediaPath, MediaType: message.MediaType, MediaWidth: message.MediaWidth, MediaHeight: message.MediaHeight, ThumbnailURL: message.ThumbnailURL, ThumbnailPath: message.ThumbnailPath, DocumentName: message.DocumentName, GroupID: message.GroupID, GroupIndex: message.GroupIndex, CreatedAt: message.CreatedAt, ReplyTo: messageDTO(message.ReplyTo)}
 	if message.Sender != nil {
-		sender := userDTO(*message.Sender)
+		sender := publicUserDTO(*message.Sender)
 		result.Sender = &sender
 	}
 	return result
 }
 
 type chatResponse struct {
-	ID           string           `json:"id"`
-	IsGroup      bool             `json:"isGroup"`
-	GroupName    string           `json:"groupName"`
-	CreatedBy    string           `json:"createdBy"`
-	CreatedAt    time.Time        `json:"createdAt"`
-	UpdatedAt    time.Time        `json:"updatedAt"`
-	Participants []userResponse   `json:"participants"`
-	LastMessage  *messageResponse `json:"lastMessage,omitempty"`
+	ID           string               `json:"id"`
+	IsGroup      bool                 `json:"isGroup"`
+	GroupName    string               `json:"groupName"`
+	CreatedBy    string               `json:"createdBy"`
+	CreatedAt    time.Time            `json:"createdAt"`
+	UpdatedAt    time.Time            `json:"updatedAt"`
+	Participants []publicUserResponse `json:"participants"`
+	LastMessage  *messageResponse     `json:"lastMessage,omitempty"`
 }
 
 func chatDTO(chat domain.Chat) chatResponse {
-	return chatResponse{ID: chat.ID, IsGroup: chat.IsGroup, GroupName: chat.GroupName, CreatedBy: chat.CreatedBy, CreatedAt: chat.CreatedAt, UpdatedAt: chat.UpdatedAt, Participants: usersDTO(chat.Participants), LastMessage: messageDTO(chat.LastMessage)}
+	return chatResponse{ID: chat.ID, IsGroup: chat.IsGroup, GroupName: chat.GroupName, CreatedBy: chat.CreatedBy, CreatedAt: chat.CreatedAt, UpdatedAt: chat.UpdatedAt, Participants: publicUsersDTO(chat.Participants), LastMessage: messageDTO(chat.LastMessage)}
 }

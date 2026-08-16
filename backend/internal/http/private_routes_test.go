@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -35,9 +34,6 @@ func TestPrivateRoutesAreRegisteredAndAuthenticated(t *testing.T) {
 		"POST /api/v1/message/read":                         false,
 		"DELETE /api/v1/chat/:chatId/message/:messageId":    false,
 		"POST /api/v1/users/avatar":                         false,
-		"GET /api/v1/users":                                 false,
-		"GET /api/v1/users/search":                          false,
-		"POST /api/v1/users/:userId/reindex-search":         false,
 	}
 	for _, route := range server.GetRoutes() {
 		key := route.Method + " " + route.Path
@@ -141,39 +137,6 @@ func TestMarkReadPreservesClearedUnreadResponse(t *testing.T) {
 	}
 	if body["error"] != false || body["clearedUnread"] != true {
 		t.Fatalf("unexpected read receipt response: %#v", body)
-	}
-}
-
-func TestAdapterErrorsAreMappedWithoutLeakingCause(t *testing.T) {
-	users := &fakeUserRepository{getAll: func(context.Context, string) ([]domain.User, error) {
-		return nil, errors.New("postgres password=secret")
-	}}
-	server, _, _ := privateTestServer(users, &fakeMessageRepository{}, &fakeSearchIndexer{})
-	response, err := server.Test(authenticatedRequest(http.MethodGet, "/api/v1/users", nil), -1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if response.StatusCode != http.StatusBadGateway {
-		t.Fatalf("dependency failure returned %d", response.StatusCode)
-	}
-	var body map[string]any
-	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
-		t.Fatal(err)
-	}
-	if body["msg"] != "users could not be loaded" || strings.Contains(body["msg"].(string), "secret") {
-		t.Fatalf("unsafe error response: %#v", body)
-	}
-}
-
-func TestReindexRouteKeepsArbitraryTargetID(t *testing.T) {
-	search := &fakeSearchIndexer{}
-	server, _, _ := privateTestServer(&fakeUserRepository{}, &fakeMessageRepository{}, search)
-	response, err := server.Test(authenticatedRequest(http.MethodPost, "/api/v1/users/bob/reindex-search", nil), -1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if response.StatusCode != http.StatusOK || search.reindexed != "bob" {
-		t.Fatalf("reindex response=%d target=%q", response.StatusCode, search.reindexed)
 	}
 }
 

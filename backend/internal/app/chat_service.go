@@ -150,22 +150,6 @@ func (s *ChatService) GetSingleChat(ctx context.Context, chatID, userID string) 
 	return &chat, nil
 }
 
-func (s *ChatService) GetAllUsers(ctx context.Context, userID string) ([]domain.User, error) {
-	users, err := s.users.GetAll(ctx, userID)
-	if err != nil {
-		return nil, DependencyUnavailable("users could not be loaded", err)
-	}
-	return users, nil
-}
-
-func (s *ChatService) SearchUsers(ctx context.Context, userID, query string) ([]domain.User, error) {
-	users, err := s.users.SearchByUsername(ctx, query, userID)
-	if err != nil {
-		return nil, DependencyUnavailable("users could not be searched", err)
-	}
-	return users, nil
-}
-
 func (s *ChatService) AddMembers(ctx context.Context, chatID, userID string, newMemberIDs []string) error {
 	if err := s.requireGroupAdmin(ctx, chatID, userID); err != nil {
 		return err
@@ -489,9 +473,4 @@ func chatReadError(message string, err error) error {
 
 func (s *ChatService) indexChat(ctx context.Context, chatID string) {
 	_ = s.search.IndexChat(ctx, chatID)
-}
-
-func (s *ChatService) ReindexUserSearch(ctx context.Context, userID string) {
-	log.Printf("[search] ReindexUserSearch: userID=%s", userID)
-	_ = s.search.ReindexUser(ctx, userID)
 }

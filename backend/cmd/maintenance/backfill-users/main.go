@@ -1,73 +1,109 @@
-// backfill-users repairs missing Firestore user records for existing PostgreSQL users.
-// Run: go run ./cmd/maintenance/backfill-users
-// Safe to re-run (idempotent).
-
+// reconcile-user-profiles normalizes the public Firestore profile directory.
+// Run with --apply after reviewing the default dry-run output.
 package main
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"log"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
 	"github.com/andyathsid/backend/internal/platform/config"
-	"github.com/andyathsid/backend/internal/platform/database"
 	firebaseInit "github.com/andyathsid/backend/internal/platform/firebase"
 	_ "github.com/joho/godotenv/autoload"
+	"google.golang.org/api/iterator"
 )
 
 func main() {
-	ctx := context.Background()
+	apply := flag.Bool("apply", false, "write normalized Firestore profiles")
+	flag.Parse()
 
-	cfg, err := config.LoadDatabaseAndFirebase()
+	ctx := context.Background()
+	cfg, err := config.LoadFirebase()
 	if err != nil {
 		log.Fatalf("load configuration: %v", err)
 	}
-	firebaseApp, err := firebaseInit.NewApp(ctx, cfg.Firebase)
+	app, err := firebaseInit.NewApp(ctx, cfg)
 	if err != nil {
 		log.Fatalf("firebase init failed: %v", err)
 	}
-
-	fsClient, err := firebaseApp.Firestore(ctx)
+	fs, err := app.Firestore(ctx)
 	if err != nil {
 		log.Fatalf("firestore init failed: %v", err)
 	}
-	defer fsClient.Close()
-
-	db, err := database.Open(cfg.Database)
+	defer fs.Close()
+	authClient, err := app.Auth(ctx)
 	if err != nil {
-		log.Fatalf("database connection failed: %v", err)
-	}
-	defer db.Close()
-	userRepo := database.NewUserRepositorySQL(db)
-
-	users, err := userRepo.GetAll(ctx, "")
-	if err != nil {
-		log.Fatalf("failed to fetch users: %v", err)
+		log.Fatalf("auth init failed: %v", err)
 	}
 
-	log.Printf("Found %d users to sync to Firestore", len(users))
+	profiles, err := fs.Collection("users").Documents(ctx).GetAll()
+	if err != nil {
+		log.Fatalf("load Firestore profiles: %v", err)
+	}
+	existing := make(map[string]map[string]any, len(profiles))
+	for _, profile := range profiles {
+		existing[profile.Ref.ID] = profile.Data()
+	}
 
-	for start := 0; start < len(users); start += 400 {
-		end := min(start+400, len(users))
-		err = fsClient.RunTransaction(ctx, func(_ context.Context, transaction *firestore.Transaction) error {
-			for _, user := range users[start:end] {
-				if err := transaction.Set(fsClient.Collection("users").Doc(user.ID), map[string]interface{}{
-					"username":  user.Username,
-					"email":     user.Email,
-					"avatar":    user.Avatar,
-					"updatedAt": time.Now(),
-				}, firestore.MergeAll); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			log.Fatalf("sync users %d-%d: %v", start+1, end, err)
+	updated := 0
+	users := authClient.Users(ctx, "")
+	for {
+		record, err := users.Next()
+		if errors.Is(err, iterator.Done) {
+			break
 		}
-		log.Printf("Committed %d user writes...", end)
+		if err != nil {
+			log.Fatalf("list Firebase users: %v", err)
+		}
+		data, found := existing[record.UID]
+		username := strings.TrimSpace(stringValue(data["username"]))
+		if username == "" {
+			username = strings.TrimSpace(record.DisplayName)
+		}
+		if username == "" {
+			username = "User"
+		}
+		update := map[string]any{
+			"username":           username,
+			"usernameNormalized": strings.ToLower(username),
+			"avatar":             stringValue(data["avatar"]),
+			"email":              firestore.Delete,
+		}
+		if !found || timeValue(data["createdAt"]).IsZero() {
+			update["createdAt"] = time.UnixMilli(record.UserMetadata.CreationTimestamp)
+		}
+		if !found || timeValue(data["updatedAt"]).IsZero() {
+			update["updatedAt"] = time.Now()
+		}
+		updated++
+		if *apply {
+			if _, err := fs.Collection("users").Doc(record.UID).Set(ctx, update, firestore.MergeAll); err != nil {
+				log.Fatalf("write profile %s: %v", record.UID, err)
+			}
+		}
+		delete(existing, record.UID)
 	}
 
-	log.Printf("Successfully synced %d users to Firestore users/ collection", len(users))
+	for userID := range existing {
+		log.Printf("orphan Firestore profile retained userID=%s", userID)
+	}
+	mode := "dry run"
+	if *apply {
+		mode = "applied"
+	}
+	log.Printf("profile reconciliation %s: %d Firebase users, %d orphan profiles", mode, updated, len(existing))
+}
+
+func stringValue(value any) string {
+	result, _ := value.(string)
+	return result
+}
+
+func timeValue(value any) time.Time {
+	result, _ := value.(time.Time)
+	return result
 }

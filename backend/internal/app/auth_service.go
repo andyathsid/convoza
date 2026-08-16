@@ -43,15 +43,7 @@ func (s *AuthService) UpdateUserAvatar(ctx context.Context, userID string, uploa
 		_ = deleteStorageObject(context.Background(), s.storage, object.Path)
 		return nil, nil, userWriteError(err)
 	}
-	if err := s.profiles.WriteUserProfile(ctx, user); err != nil {
-		// Restore the previous URL before cleanup, otherwise PostgreSQL would point at a deleted object.
-		user.Avatar = previousAvatar
-		if restoreErr := s.users.Upsert(ctx, &user); restoreErr != nil {
-			return nil, nil, DependencyUnavailable("avatar update could not be rolled back", errors.Join(err, restoreErr))
-		}
-		_ = deleteStorageObject(context.Background(), s.storage, object.Path)
-		return nil, nil, DependencyUnavailable("user profile could not be updated", err)
-	}
+	_ = previousAvatar
 	return &user, object, nil
 }
 
@@ -60,10 +52,10 @@ type AuthSyncOpts struct {
 	Username   string
 	Avatar     string
 	AvatarPath string
-	Email      string
 }
 
-// VerifyAndSyncUser verifies a Firebase ID token and syncs the user to PostgreSQL.
+// VerifyAndSyncUser verifies a Firebase ID token and synchronizes its public
+// profile to Firestore. Firebase Auth remains the authority for email identity.
 // opts is optional; pass nil for session restore where no field override is needed.
 func (s *AuthService) VerifyAndSyncUser(ctx context.Context, idToken string, opts *AuthSyncOpts) (*models.User, error) {
 	token, err := s.identity.VerifyIDToken(ctx, idToken)
@@ -103,22 +95,6 @@ func (s *AuthService) VerifyAndSyncUser(ctx context.Context, idToken string, opt
 			}
 		}
 
-		// Fallback to frontend-provided email if still empty
-		if email == "" && opts != nil && opts.Email != "" {
-			email = opts.Email
-		}
-
-		// Block sign-in if email is already registered under a different UID
-		if email != "" {
-			existingByEmail, lookupErr := s.users.GetByEmail(ctx, email)
-			switch {
-			case lookupErr == nil && existingByEmail.ID != token.UID:
-				return nil, Conflict("This email is already registered with a different sign-in method. Please use your original provider.", nil)
-			case lookupErr != nil && !errors.Is(lookupErr, models.ErrNotFound):
-				return nil, DependencyUnavailable("email availability could not be checked", lookupErr)
-			}
-		}
-
 		user = models.User{
 			ID:       token.UID,
 			Email:    email,
@@ -129,6 +105,7 @@ func (s *AuthService) VerifyAndSyncUser(ctx context.Context, idToken string, opt
 	} else {
 		user = existingUser
 		// Fill in missing email from Firebase Admin SDK if needed
+		user.Email = token.Email
 		if user.Email == "" {
 			firebaseUser, err := s.identity.GetUser(ctx, token.UID)
 			if err == nil && len(firebaseUser.Providers) > 0 {
@@ -158,18 +135,11 @@ func (s *AuthService) VerifyAndSyncUser(ctx context.Context, idToken string, opt
 			}
 			user.Avatar = opts.Avatar
 		}
-		if opts.Email != "" && user.Email == "" {
-			user.Email = opts.Email
-		}
 	}
 
 	// Upsert user (handles both new users and profile updates)
 	if err := s.users.Upsert(ctx, &user); err != nil {
 		return nil, userWriteError(err)
-	}
-
-	if err := s.profiles.WriteUserProfile(ctx, user); err != nil {
-		return nil, DependencyUnavailable("user profile could not be synchronized", err)
 	}
 
 	// Index contact to Typesense (same write triggers both Firestore + Typesense)
@@ -179,9 +149,6 @@ func (s *AuthService) VerifyAndSyncUser(ctx context.Context, idToken string, opt
 }
 
 func userWriteError(err error) error {
-	if errors.Is(err, models.ErrConflict) {
-		return Conflict("This email is already registered. Please sign in with your original provider.", err)
-	}
 	return DependencyUnavailable("user could not be saved", err)
 }
 

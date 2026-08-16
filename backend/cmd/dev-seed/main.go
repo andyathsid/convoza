@@ -15,17 +15,15 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
 	firebaseAuth "firebase.google.com/go/v4/auth"
 	application "github.com/andyathsid/backend/internal/app"
-	"github.com/andyathsid/backend/internal/domain"
 	"github.com/andyathsid/backend/internal/platform/config"
-	"github.com/andyathsid/backend/internal/platform/database"
 	firebaseInit "github.com/andyathsid/backend/internal/platform/firebase"
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -135,14 +133,14 @@ func generateMessages(n int, sender1ID, sender1Name, sender2ID, sender2Name stri
 func main() {
 	ctx := context.Background()
 
-	cfg, err := config.LoadDatabaseAndFirebase()
+	cfg, err := config.LoadFirebase()
 	if err != nil {
 		log.Fatalf("load configuration: %v", err)
 	}
-	if err := cfg.Firebase.ValidateDatabase(); err != nil {
+	if err := cfg.ValidateDatabase(); err != nil {
 		log.Fatalf("load configuration: %v", err)
 	}
-	firebaseApp, err := firebaseInit.NewApp(ctx, cfg.Firebase)
+	firebaseApp, err := firebaseInit.NewApp(ctx, cfg)
 	if err != nil {
 		log.Fatalf("firebase init failed: %v", err)
 	}
@@ -160,14 +158,6 @@ func main() {
 		log.Fatalf("auth client init failed: %v", err)
 	}
 
-	// Init PostgreSQL (users only)
-	db, err := database.Open(cfg.Database)
-	if err != nil {
-		log.Fatalf("database connection failed: %v", err)
-	}
-	defer db.Close()
-	userRepo := database.NewUserRepositorySQL(db)
-
 	allUsers := append(dummyAccounts, fakeUsers...)
 	rng := rand.New(rand.NewSource(42))
 
@@ -177,13 +167,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("RTDB membership init failed: %v", err)
 	}
-	cleanupSeedData(ctx, authClient, fsClient, db, allUsers, membershipMirror)
+	cleanupSeedData(ctx, authClient, fsClient, allUsers, membershipMirror)
 
-	// Step 1: Create users in Firebase Auth + PostgreSQL + Firestore
+	// Step 1: Create users in Firebase Auth + Firestore
 	log.Println("=== Step 1: Creating users ===")
 	for _, u := range allUsers {
 		ensureFirebaseUser(ctx, authClient, u)
-		ensurePGUser(ctx, userRepo, u)
 		ensureFirestoreUser(ctx, fsClient, u)
 	}
 	log.Printf("Created %d users total", len(allUsers))
@@ -213,7 +202,7 @@ func main() {
 }
 
 // cleanupSeedData removes all old seed data to ensure idempotency.
-func cleanupSeedData(ctx context.Context, auth *firebaseAuth.Client, fs *firestore.Client, db *sqlx.DB, users []seedUser, mirror application.MembershipMirror) {
+func cleanupSeedData(ctx context.Context, auth *firebaseAuth.Client, fs *firestore.Client, users []seedUser, mirror application.MembershipMirror) {
 	// 1. Delete Firestore chats where any seed user is a participant
 	for _, u := range users {
 		docs, _ := fs.Collection("chats").Where("participants", "array-contains", u.UID).Documents(ctx).GetAll()
@@ -251,12 +240,12 @@ func cleanupSeedData(ctx context.Context, auth *firebaseAuth.Client, fs *firesto
 		}
 	}
 
-	// 2. Delete users from PostgreSQL
-	uids := make([]string, len(users))
-	for i, u := range users {
-		uids[i] = u.UID
+	// 2. Delete Firestore profiles so each run starts from a complete seed state.
+	for _, u := range users {
+		if _, err := fs.Collection("users").Doc(u.UID).Delete(ctx); err != nil {
+			log.Printf("  Warning: could not delete seed profile %s: %v", u.UID, err)
+		}
 	}
-	db.ExecContext(ctx, "DELETE FROM users WHERE id IN (SELECT unnest($1::text[]))", uids)
 
 	// 3. Delete Firebase Auth users
 	for _, u := range users {
@@ -287,26 +276,14 @@ func ensureFirebaseUser(ctx context.Context, auth *firebaseAuth.Client, u seedUs
 	}
 }
 
-// ensurePGUser upserts user to PostgreSQL.
-func ensurePGUser(ctx context.Context, repo domain.UserRepository, u seedUser) {
-	err := repo.Upsert(ctx, &domain.User{
-		ID:       u.UID,
-		Email:    u.Email,
-		Username: u.Username,
-		Avatar:   "",
-	})
-	if err != nil {
-		log.Printf("  Warning: could not upsert PG user %s: %v", u.UID, err)
-	}
-}
-
 // ensureFirestoreUser writes user profile to Firestore.
 func ensureFirestoreUser(ctx context.Context, fs *firestore.Client, u seedUser) {
 	data := map[string]interface{}{
-		"username":  u.Username,
-		"email":     u.Email,
-		"avatar":    "",
-		"updatedAt": time.Now(),
+		"username":           u.Username,
+		"usernameNormalized": strings.ToLower(u.Username),
+		"avatar":             "",
+		"createdAt":          time.Now(),
+		"updatedAt":          time.Now(),
 	}
 	_, err := fs.Collection("users").Doc(u.UID).Set(ctx, data, firestore.MergeAll)
 	if err != nil {
