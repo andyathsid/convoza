@@ -32,27 +32,27 @@ function ChatListEmptyState({
 }) {
   const config = filter === "unread"
     ? {
-        icon: CheckCircle2,
-        title: "No unread chats",
-        description: "You're all caught up.",
-      }
+      icon: CheckCircle2,
+      title: "No unread chats",
+      description: "You're all caught up.",
+    }
     : filter === "groups"
       ? {
-          icon: UsersRound,
-          title: "No group chats",
-          description: "Group conversations will show up here.",
-        }
+        icon: UsersRound,
+        title: "No group chats",
+        description: "Group conversations will show up here.",
+      }
       : {
-          icon: MessageCircle,
-          title: "No chats yet",
-          description: "Start a conversation to see it here.",
-        };
+        icon: MessageCircle,
+        title: "No chats yet",
+        description: "Start a conversation to see it here.",
+      };
   const Icon = config.icon;
   const canViewAll = currentUserId && filter !== "all";
 
   return (
     <div className="flex min-h-64 flex-col items-center justify-center px-8 text-center">
-      <div className="mb-5 flex size-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 ring-4 ring-emerald-500/5 dark:text-emerald-400">
+      <div className="mb-5 flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary ring-4 ring-primary/5">
         <Icon className="size-8" strokeWidth={1.8} />
       </div>
       <h3 className="text-lg font-semibold tracking-tight text-foreground">
@@ -65,7 +65,7 @@ function ChatListEmptyState({
         <button
           type="button"
           onClick={onViewAll}
-          className="mt-4 text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+          className="mt-4 text-sm font-medium text-primary transition-colors hover:text-primary/80"
         >
           View all chats
         </button>
@@ -152,11 +152,10 @@ const ChatList = () => {
                 type="button"
                 aria-pressed={activeChatFilter === filter.value}
                 onClick={() => currentUserId && setChatFilter(filter.value, currentUserId)}
-                className={`inline-flex min-w-0 items-center justify-center rounded-full px-3 py-1 text-center text-xs font-medium whitespace-nowrap transition-colors ${
-                  activeChatFilter === filter.value
-                    ? "bg-emerald-600 text-white"
+                className={`inline-flex h-8 min-w-0 items-center justify-center rounded-full border border-transparent px-3 text-center text-xs font-medium whitespace-nowrap transition-colors ${activeChatFilter === filter.value
+                    ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
-                }`}
+                  }`}
               >
                 <span>{filter.label}</span>
                 {filter.value === "unread" && unreadChatCount > 0 && (
@@ -230,9 +229,8 @@ const ChatList = () => {
 
       {/* New chat panel overlay - slides in from left */}
       <div
-        className={`absolute inset-0 z-20 bg-card transition-transform duration-200 ease-in-out ${
-          activeChatListPanel === "newChat" ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`absolute inset-0 z-20 bg-card transition-transform duration-200 ease-in-out ${activeChatListPanel === "newChat" ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <NewChatPanel />
       </div>

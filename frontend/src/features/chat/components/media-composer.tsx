@@ -444,7 +444,7 @@ export default function MediaComposer({
             size="icon"
             // disabled={isSending}
             onClick={handleSend}
-            className="shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white"
+            className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Send className="h-5 w-5" />
           </Button>

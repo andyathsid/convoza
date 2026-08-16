@@ -26,7 +26,7 @@ export default function Logo({
       </div>
       {showText && (
         <span className={cn("font-semibold text-lg", textClass)}>
-          ChatApp
+          Convoza
         </span>
       )}
     </Link>

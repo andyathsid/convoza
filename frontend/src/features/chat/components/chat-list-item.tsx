@@ -104,7 +104,7 @@ const ChatListItem = memo(({ chat, currentUserId, isActive, onClick }: PropsType
   const renderLastMessage = () => {
     if (typingText) {
       return (
-        <span className="block truncate text-xs font-medium text-emerald-600 dark:text-emerald-400">
+        <span className="block truncate text-xs font-medium text-primary">
           {typingText}
         </span>
       );
@@ -179,7 +179,7 @@ const ChatListItem = memo(({ chat, currentUserId, isActive, onClick }: PropsType
           ) : (
             <h5 className={cn("text-sm truncate", hasUnread ? "font-bold" : "font-semibold")}>{name}</h5>
           )}
-          <span className={cn("text-xs ml-2 shrink-0", hasUnread ? "font-medium text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+          <span className={cn("text-xs ml-2 shrink-0", hasUnread ? "font-medium text-primary" : "text-muted-foreground")}>
             {formatChatTime(lastMessage ? (lastMessage.createdAt || lastMessage.timestamp) : createdAt)}
           </span>
         </div>
@@ -187,7 +187,7 @@ const ChatListItem = memo(({ chat, currentUserId, isActive, onClick }: PropsType
           <div className="min-w-0 flex-1">{renderLastMessage()}</div>
           {hasUnread && (
             <span
-              className="flex min-w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+              className="flex min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground"
               aria-label={`${unreadCount} unread messages`}
             >
               {unreadCount > 99 ? "99+" : unreadCount}

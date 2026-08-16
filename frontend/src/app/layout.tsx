@@ -6,14 +6,31 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/features/auth";
 import { Toaster } from "@/components/ui/sonner";
 
+const description = "Convoza is a real-time chat application.";
+
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "ChatApp",
-  description: "Real-time chat application",
+  applicationName: "Convoza",
+  title: {
+    default: "Convoza",
+    template: "%s | Convoza",
+  },
+  description,
+  openGraph: {
+    type: "website",
+    title: "Convoza",
+    description,
+    siteName: "Convoza",
+  },
+  twitter: {
+    card: "summary",
+    title: "Convoza",
+    description,
+  },
 };
 
 export default function RootLayout({

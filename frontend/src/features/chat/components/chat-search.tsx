@@ -132,9 +132,9 @@ function SearchResultRow({
       const loaded = chats.find((chat) => chat.id === groupHit.id);
       const resolvedMetadata = loaded
         ? {
-            groupName: loaded.groupName,
-            groupAvatar: loaded.groupAvatar || "",
-          }
+          groupName: loaded.groupName,
+          groupAvatar: loaded.groupAvatar || "",
+        }
         : metadata.get(groupHit.id);
 
       return (
@@ -607,7 +607,7 @@ function CategoryFilters({
                 aria-pressed={activeCategory === category}
                 onClick={() => onChange(category)}
                 className={cn(
-                  "min-w-24 flex-1 shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                  "inline-flex h-8 min-w-24 flex-1 shrink-0 items-center justify-center rounded-full border px-3 text-center text-xs font-medium whitespace-nowrap transition-colors",
                   activeCategory === category
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
