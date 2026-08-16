@@ -39,4 +39,5 @@ npm run lint
 npm run test:rules
 ```
 
-React Compiler is enabled. Keep render functions pure, do not read time or mutate refs during render, and move side effects into effects.
+> [!NOTE]
+> React Compiler is enabled. 

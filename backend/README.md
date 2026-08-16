@@ -2,7 +2,7 @@
 
 For first-time local setup, use the [root README](../README.md).
 
-This Go Fiber backend owns durable mutations and business-rule enforcement. Its clean architecture keeps dependencies pointed inward:
+This Go Fiber backend owns durable mutations and business-rule enforcement. Its adapt clean architecture to keeps dependencies pointed inward:
 
 - `internal/domain` defines transport-neutral entities and repository contracts.
 - `internal/app` owns use cases and ports for identity, storage, membership, and search.

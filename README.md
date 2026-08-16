@@ -1,8 +1,8 @@
-# ChatApp
+# Convoza
 
 ## Project overview
 
-ChatApp is a real-time chat application for direct and group conversations. It supports media, replies, typing indicators, presence, delivery and read state, and full-text search.
+Convoza is a real-time chat application for direct and group conversations. It supports media, replies, typing indicators, presence, delivery and read state, and full-text search.
 
 The frontend uses Next.js 16 and React 19. The API is Go Fiber. PostgreSQL stores user and authentication records, Firebase provides Authentication, Firestore, Realtime Database, and Storage. Typesense provides search.
 
@@ -17,16 +17,14 @@ flowchart LR
     API --> Typesense[(Typesense)]
 ```
 
-Two boundaries are non-negotiable:
+There are two boundaries:
 
 - The frontend reads and listens to Firebase directly for real-time data.
 - Any mutations go through the Go API.
 
-PostgreSQL owns users and authentication records. Firebase owns chat, message, and media data, plus real-time presence state.
-
 ## Requirements and Firebase configuration
 
-Install Docker Compose, Go 1.26.1, Node.js 20 or newer, npm, and the `golang-migrate` CLI with PostgreSQL support.
+Install Docker Compose, Go 1.26.1, Node.js 20 or newer, and npm.
 
 This project uses Firebase. Configure a Firebase project manually in Firebase Console, then create or enable:
 
@@ -61,19 +59,12 @@ Place the same service-account JSON at both `backend/firebase-service-account.js
    docker compose -f compose.dev.yml up --build
    ```
 
-4. After PostgreSQL starts, apply the tracked migrations:
-
-   ```bash
-   migrate -path backend/platform/migrations -database "postgres://postgres:password@localhost:5432/chatapp?sslmode=disable" up
-   ```
-
 Local services:
 
 | Service | URL |
 | --- | --- |
 | Frontend | http://localhost:3001 |
 | API | http://localhost:5000 |
-| Adminer | http://localhost:8081 |
 | Typesense | http://localhost:8108 |
 | Typesense Dashboard | http://localhost:8080 |
 
