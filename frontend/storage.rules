@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isActiveMember(chatId) {
+      let member = firestore.get(
+        /databases/(default)/documents/chats/$(chatId)/members/$(request.auth.uid)
+      );
+      return member != null
+        && member.data != null
+        && member.data.uid == request.auth.uid
+        && member.data.leftAt == null;
+    }
+
+    match /users/{uid}/avatar/{fileId} {
+      allow get: if isSignedIn();
+    }
+
+    match /chats/{chatId}/media/{uid}/{fileId} {
+      allow get: if isSignedIn() && isActiveMember(chatId);
+    }
+
+    match /chats/{chatId}/thumbnails/{uid}/{fileId} {
+      allow get: if isSignedIn() && isActiveMember(chatId);
+    }
+
+    match /chats/{chatId}/avatar/{uid}/{fileId} {
+      allow get: if isSignedIn() && isActiveMember(chatId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

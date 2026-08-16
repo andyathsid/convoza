@@ -1,0 +1,37 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "status": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && newData.exists()",
+        ".validate": "newData.hasChildren(['state', 'last_changed'])",
+        "state": {
+          ".validate": "newData.isString() && (newData.val() === 'online' || newData.val() === 'offline')"
+        },
+        "last_changed": {
+          ".validate": "newData.isNumber() && newData.val() === now"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "chatMembers": {
+      ".read": false,
+      ".write": false
+    },
+    "typing": {
+      "$chatId": {
+        ".read": "auth != null && root.child('chatMembers').child($chatId).child(auth.uid).val() === true",
+        "$uid": {
+          "$sessionId": {
+            ".write": "auth != null && root.child('chatMembers').child($chatId).child(auth.uid).val() === true && auth.uid === $uid && $sessionId.matches(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)",
+            ".validate": "newData.isNumber() && newData.val() === now"
+          }
+        }
+      }
+    }
+  }
+}

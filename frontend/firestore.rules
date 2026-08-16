@@ -1,0 +1,48 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isActiveChatParticipant(chatId) {
+      return isSignedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+    }
+
+    function isOwnActiveMembership() {
+      // Member documents are backend-owned, so their UID field is trustworthy and lets
+      // the collection-group unread query prove self access without a path-ID filter.
+      return isSignedIn()
+        && resource.data.uid == request.auth.uid
+        && resource.data.leftAt == null;
+    }
+
+    match /users/{uid} {
+      allow get, list: if isSignedIn();
+    }
+
+    match /chats/{chatId} {
+      allow get, list: if isSignedIn() && request.auth.uid in resource.data.participants;
+    }
+
+    match /chats/{chatId}/messages/{messageId} {
+      allow get, list: if isActiveChatParticipant(chatId);
+    }
+
+    match /chats/{chatId}/members/{memberUid} {
+      allow get, list: if isActiveChatParticipant(chatId);
+    }
+
+    match /{path=**}/members/{memberUid} {
+      // A collection-group query has no fixed parent path, so Rules v2 needs this
+      // recursive list match to authorize the self-only unread index across chats.
+      allow list: if isOwnActiveMembership();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

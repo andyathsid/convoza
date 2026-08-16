@@ -1,0 +1,36 @@
+version: '3.8'                                                                                                                          
+                                                                                                                                        
+services:                                                                                                                               
+  meilisearch:                                                                                                                          
+    image: getmeili/meilisearch:latest                                                                                                  
+    container_name: meili_bench                                                                                                         
+    environment:
+      - MEILI_MASTER_KEY=masterKey
+      - MEILI_ENV=${MEILI_ENV:-development}
+      # Benchmark imports can monopolize the node, so do not keep the default
+      # "half the available threads" cap that Meilisearch uses to protect live search latency.
+      - MEILI_MAX_INDEXING_THREADS=${MEILI_MAX_INDEXING_THREADS:-2}
+      # Give indexing a slightly larger working set on the 2 GiB benchmark VM,
+      # while still leaving headroom for Docker, the OS, and the benchmark client.
+      - MEILI_MAX_INDEXING_MEMORY=${MEILI_MAX_INDEXING_MEMORY:-1400MiB}
+    ulimits:
+      nofile:
+        soft: 3000
+        hard: 3000
+    ports:                                                                                                                              
+      - "7700:7700"                                                                                                                     
+    volumes:                                                                                                                            
+      - ./meili_data:/meili_data                                                                                                        
+    restart: unless-stopped                                                                                                             
+                                                                                                                                        
+  typesense:                                                                                                                            
+    image: typesense/typesense:latest                                                                                                   
+    container_name: typesense_bench                                                                                                     
+    environment:                                                                                                                        
+      - TYPESENSE_API_KEY=SecretBenchKey123!                                                                                            
+      - TYPESENSE_DATA_DIR=/data                                                                                                        
+    ports:                                                                                                                              
+      - "8108:8108"                                                                                                                     
+    volumes:                                                                                                                            
+      - ./typesense_data:/data                                                                                                          
+    restart: unless-stopped  

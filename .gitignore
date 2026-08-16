@@ -1,0 +1,103 @@
+# ---- Go / Fiber (backend) ----
+
+# Binaries
+backend/tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go build output
+backend/bin/
+*.test
+*.out
+*.prof
+
+# Go workspace
+go.work
+go.work.sum
+
+# Dependency directories 
+vendor/
+
+# Air (live reload) temp
+*.log
+
+# ---- Next.js / Node (frontend) ----
+
+# Dependencies
+frontend/node_modules/
+scripts/node_modules/
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!.frontend/.yarn/patches
+!.frontend/.yarn/plugins
+!.frontend/.yarn/releases
+!.frontend/.yarn/sdks
+!.frontend/.yarn/versions
+
+# Next.js build output
+frontend/.next/
+frontend/out/
+
+# Production build
+frontend/build/
+
+# TypeScript
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# Debug logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# Vercel / deployment
+.vercel
+
+# ---- IDEs & Editors ----
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ---- Environment & Secrets ----
+
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*
+
+# Firebase service account 
+firebase-service-account.json
+firebase-service-account-*.json
+*-firebase-service-account.json
+
+# ---- Docker ----
+
+# Docker override 
+docker-compose.override.yml
+
+# ---- Project-specific ----
+
+playground/
+tmp/
+agent/
+bench-logs/
+runbooks/
+superpowers/
+
+# ---- OS files ----
+
+.DS_Store
+Desktop.ini
+$RECYCLE.BIN/

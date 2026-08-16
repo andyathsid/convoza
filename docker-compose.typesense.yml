@@ -1,0 +1,33 @@
+services:
+  typesense:
+    image: typesense/typesense:28.0
+    ports:
+      - "8108:8108"
+    volumes:
+      - typesense-data:/data
+    command: --data-dir /data --api-key=${TYPESENSE_API_KEY} --enable-cors
+
+  typesense-dashboard:
+    image: ghcr.io/bfritscher/typesense-dashboard:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      - typesense
+
+  # ngrok:
+  #   image: ngrok/ngrok:latest
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - typesense
+  #   command:
+  #     - "http"
+  #     - "--domain=jay-fit-safely.ngrok-free.app"
+  #     - "http://typesense:8108"
+  #   environment:
+  #     NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+  #     TYPESENSE_API_KEY: ${TYPESENSE_API_KEY}
+  #   ports:
+  #     - "4040:4040"
+
+volumes:
+  typesense-data:
