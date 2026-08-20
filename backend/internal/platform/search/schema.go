@@ -1,76 +1,90 @@
 package search
 
 import (
-	"context"
-	"log"
+	"fmt"
+	"time"
 
-	"github.com/typesense/typesense-go/v3/typesense"
-	"github.com/typesense/typesense-go/v3/typesense/api"
+	"github.com/meilisearch/meilisearch-go"
 )
 
-func ptr[T any](v T) *T { return &v }
+const taskPollInterval = 100 * time.Millisecond
 
-func collectionSchemas() []api.CollectionSchema {
-	return []api.CollectionSchema{
+type indexDefinition struct {
+	uid      string
+	settings *meilisearch.Settings
+}
+
+func indexDefinitions() []indexDefinition {
+	return []indexDefinition{
 		{
-			Name: "messages",
-			Fields: []api.Field{
-				{Name: "content", Type: "string"},
-				{Name: "documentName", Type: "string", Optional: ptr(true)},
-				{Name: "chatId", Type: "string"},
-				{Name: "participants", Type: "string[]"},
-				{Name: "createdAt", Type: "int64"},
-				{Name: "senderId", Type: "string", Optional: ptr(true), Index: ptr(false)},
-				{Name: "mediaType", Type: "string", Optional: ptr(true), Index: ptr(false)},
-				{Name: "deliveredTo", Type: "string[]", Optional: ptr(true), Index: ptr(false)},
-				{Name: "readBy", Type: "string[]", Optional: ptr(true), Index: ptr(false)},
-			},
-			DefaultSortingField: ptr("createdAt"),
-		},
-		{
-			Name: "chats",
-			Fields: []api.Field{
-				{Name: "groupName", Type: "string", Optional: ptr(true)},
-				{Name: "participantNames", Type: "string[]"},
-				{Name: "participants", Type: "string[]"},
-				{Name: "updatedAt", Type: "int64"},
-				{Name: "isGroup", Type: "bool", Optional: ptr(true), Index: ptr(false)},
-			},
-			DefaultSortingField: ptr("updatedAt"),
-		},
-		{
-			Name: "contacts",
-			Fields: []api.Field{
-				{Name: "username", Type: "string"},
+			uid: "messages",
+			settings: &meilisearch.Settings{
+				SearchableAttributes: []string{"content", "documentName"},
+				FilterableAttributes: []string{"chatId", "participants", "createdAt"},
+				SortableAttributes:   []string{"createdAt"},
+				DisplayedAttributes:  []string{"id", "content", "documentName", "chatId", "participants", "createdAt", "senderId", "mediaType", "deliveredTo", "readBy"},
 			},
 		},
 		{
-			Name: "groups",
-			Fields: []api.Field{
-				{Name: "participantNames", Type: "string[]"},
-				{Name: "participants", Type: "string[]"},
-				{Name: "updatedAt", Type: "int64"},
+			uid: "chats",
+			settings: &meilisearch.Settings{
+				SearchableAttributes: []string{"groupName", "participantNames"},
+				FilterableAttributes: []string{"participants"},
+				SortableAttributes:   []string{"updatedAt"},
+				DisplayedAttributes:  []string{"id", "groupName", "participantNames", "participants", "updatedAt", "isGroup"},
 			},
-			DefaultSortingField: ptr("updatedAt"),
+		},
+		{
+			uid: "contacts",
+			settings: &meilisearch.Settings{
+				SearchableAttributes: []string{"username"},
+				DisplayedAttributes:  []string{"id", "username"},
+			},
+		},
+		{
+			uid: "groups",
+			settings: &meilisearch.Settings{
+				SearchableAttributes: []string{"participantNames"},
+				FilterableAttributes: []string{"participants"},
+				SortableAttributes:   []string{"updatedAt"},
+				DisplayedAttributes:  []string{"id", "participantNames", "participants", "updatedAt"},
+			},
 		},
 	}
 }
 
-// EnsureCollections creates Typesense collections if they don't already exist.
-// Safe to call on every startup.
-func EnsureCollections(ctx context.Context, client *typesense.Client) error {
-	for _, schema := range collectionSchemas() {
-		// Try to retrieve; if collection exists, skip.
-		if _, err := client.Collection(schema.Name).Retrieve(ctx); err == nil {
-			log.Printf("Typesense collection %q already exists", schema.Name)
-			continue
-		}
-
-		if _, err := client.Collections().Create(ctx, &schema); err != nil {
-			return err
-		}
-		log.Printf("Typesense collection %q created", schema.Name)
+func waitForTask(client meilisearch.ServiceManager, task *meilisearch.TaskInfo) error {
+	completed, err := client.WaitForTask(task.TaskUID, taskPollInterval)
+	if err != nil {
+		return err
 	}
+	if completed.Status == meilisearch.TaskStatus("failed") {
+		return fmt.Errorf("meilisearch task %d failed: %v", task.TaskUID, completed.Error)
+	}
+	return nil
+}
 
+// EnsureIndexes creates the application's indexes when missing and applies their
+// current settings on every startup. It never deletes documents.
+func EnsureIndexes(client meilisearch.ServiceManager) error {
+	for _, definition := range indexDefinitions() {
+		if _, err := client.GetIndex(definition.uid); err != nil {
+			task, createErr := client.CreateIndex(&meilisearch.IndexConfig{Uid: definition.uid, PrimaryKey: "id"})
+			if createErr != nil {
+				return fmt.Errorf("create index %q: %w", definition.uid, createErr)
+			}
+			if err := waitForTask(client, task); err != nil {
+				return fmt.Errorf("wait for index %q creation: %w", definition.uid, err)
+			}
+		}
+
+		task, err := client.Index(definition.uid).UpdateSettings(definition.settings)
+		if err != nil {
+			return fmt.Errorf("update settings for index %q: %w", definition.uid, err)
+		}
+		if err := waitForTask(client, task); err != nil {
+			return fmt.Errorf("wait for settings of index %q: %w", definition.uid, err)
+		}
+	}
 	return nil
 }

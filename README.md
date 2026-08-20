@@ -4,7 +4,7 @@
 
 Convoza is a real-time chat application for direct and group conversations. It supports media, replies, typing indicators, presence, delivery and read state, and full-text search.
 
-The frontend uses Next.js 16 and React 19. The API is Go Fiber. Firebase provides Authentication, Firestore, Realtime Database, and Storage. Typesense provides search.
+The frontend uses Next.js 16 and React 19. The API is Go Fiber. Firebase provides Authentication, Firestore, Realtime Database, and Storage. Meilisearch provides search.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ flowchart LR
     Browser[Browser] --> Frontend[Next.js frontend]
     Frontend --> API[Go Fiber API]
     Browser <--> Firebase[Firebase Auth, Firestore, RTDB, Storage]
-    API --> Typesense[(Typesense)]
+    API --> Meilisearch[(Meilisearch)]
 ```
 
 There are two boundaries:
@@ -64,23 +64,15 @@ Local services:
 | --- | --- |
 | Frontend | http://localhost:3001 |
 | API | http://localhost:5000 |
-| Typesense | http://localhost:8108 |
-| Typesense Dashboard | http://localhost:8080 |
+| Meilisearch | http://localhost:7700 |
 
 Smoke check: register two users in separate browser sessions, start a chat, send a message, and confirm that the second session receives it without a reload.
 
 ## Local search
 
-Typesense starts with the Compose stack. The backend creates its collections when `TYPESENSE_API_KEY` is set. The frontend uses its no-results search client when `NEXT_PUBLIC_SEARCH_ENGINE` is unset.
-
-Configure the local Typesense service with these values in the local environment files:
-
-| File | Variables |
-| --- | --- |
-| `backend/.env` | `TYPESENSE_URL=http://localhost:8108`, `TYPESENSE_API_KEY=xyz` |
-| `frontend/.env.local` | `NEXT_PUBLIC_SEARCH_ENGINE=typesense`, `NEXT_PUBLIC_TYPESENSE_HOST=localhost`, `NEXT_PUBLIC_TYPESENSE_PORT=8108`, `NEXT_PUBLIC_TYPESENSE_SEARCH_ONLY_API_KEY=xyz` |
-
-The Compose service uses `xyz` as its local default API key unless `TYPESENSE_API_KEY` is supplied to Compose.
+Meilisearch starts with the Compose stack. Configure its privileged key in
+`backend/.env`, then follow the [Meilisearch development runbook](docs/meilisearch-development-runbook.md)
+to create a browser search key, seed the indexes, and verify search.
 
 ## Daily development and repository map
 
@@ -125,4 +117,4 @@ Implementation handoffs are collected in [docs/handoff](docs/handoff/), and proj
 - **Service account missing:** add the JSON file at both required paths and confirm each local environment file points to `./firebase-service-account.json`.
 - **Firebase values differ:** frontend web-app values and backend Firebase project settings must refer to the same Firebase project.
 - **Browser reports a CORS error:** use `http://localhost:3001` for the frontend and keep `ALLOWED_ORIGINS` set to that address in `backend/.env`.
-- **Typesense is unavailable:** confirm that port 8108 is free and the Typesense container is running.
+- **Meilisearch is unavailable:** confirm that port 7700 is free, `MEILI_API_KEY` is set in `backend/.env`, and the container is healthy.

@@ -94,37 +94,10 @@ export async function getSearchClient(): Promise<SearchClient> {
   const t0 = performance.now();
   const engine = process.env.NEXT_PUBLIC_SEARCH_ENGINE;
 
-  if (engine === 'typesense') {
-    const { default: TypesenseInstantSearchAdapter } = await import('typesense-instantsearch-adapter');
-    const adapter = new TypesenseInstantSearchAdapter({
-      server: {
-        apiKey: process.env.NEXT_PUBLIC_TYPESENSE_SEARCH_ONLY_API_KEY || 'xyz',
-        nodes: [{
-          host: process.env.NEXT_PUBLIC_TYPESENSE_HOST || 'localhost',
-          port: parseInt(process.env.NEXT_PUBLIC_TYPESENSE_PORT || '8108'),
-          protocol: 'http' as const,
-        }],
-      },
-      collectionSpecificSearchParameters: {
-        chats: {
-          query_by: 'groupName,participantNames',
-        },
-        contacts: {
-          query_by: 'username',
-        },
-        groups: {
-          query_by: 'participantNames',
-        },
-        messages: {
-          query_by: 'content,documentName',
-        },
-      },
-    });
-    _client = createDebuggedClient(adapter.searchClient as unknown as SearchClient, 'typesense');
-  } else if (engine === 'meilisearch') {
+  if (engine === 'meilisearch') {
     const { instantMeiliSearch } = await import('@meilisearch/instant-meilisearch');
-    const host = `http://${process.env.NEXT_PUBLIC_MEILI_HOST || 'localhost'}:${process.env.NEXT_PUBLIC_MEILI_PORT || '7700'}`;
-    const key = process.env.NEXT_PUBLIC_MEILI_SEARCH_ONLY_KEY || '';
+    const host = process.env.NEXT_PUBLIC_MEILI_URL || 'http://localhost:7700';
+    const key = process.env.NEXT_PUBLIC_MEILI_SEARCH_KEY || '';
     const { searchClient } = instantMeiliSearch(host, key);
     _client = createDebuggedClient(searchClient as unknown as SearchClient, 'meilisearch');
   } else {
@@ -140,10 +113,6 @@ export async function getSearchClient(): Promise<SearchClient> {
 export function getChronologicalMessageIndexName(): string {
   if (process.env.NEXT_PUBLIC_SEARCH_ENGINE === 'meilisearch') {
     return 'messages:createdAt:desc';
-  }
-
-  if (process.env.NEXT_PUBLIC_SEARCH_ENGINE === 'typesense') {
-    return 'messages/sort/createdAt:desc';
   }
 
   return 'messages';

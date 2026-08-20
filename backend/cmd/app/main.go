@@ -49,9 +49,9 @@ func run(ctx context.Context) error {
 	defer store.Close()
 	var indexer application.SearchIndexer = application.NopSearchIndexer{}
 	if cfg.Search.APIKey != "" {
-		client := search.NewTypesenseClient(cfg.Search)
-		if err := search.EnsureCollections(ctx, client); err != nil {
-			log.Printf("typesense collection setup warning: %v", err)
+		client := search.NewMeiliClient(cfg.Search)
+		if err := search.EnsureIndexes(client); err != nil {
+			log.Printf("meilisearch index setup warning: %v", err)
 		}
 		indexer = search.NewIndexer(search.NewSyncService(client), store, store)
 	}

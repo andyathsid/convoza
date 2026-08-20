@@ -87,7 +87,7 @@ export const useUserDirectory = create<UserDirectoryState>((set, get) => ({
   search: async (value, currentUserID) => {
     const searchValue = value.trim();
     if (!searchValue) return [];
-    if (process.env.NEXT_PUBLIC_SEARCH_ENGINE !== "typesense") {
+    if (process.env.NEXT_PUBLIC_SEARCH_ENGINE !== "meilisearch") {
       throw new ContactSearchUnavailableError();
     }
     try {

@@ -142,7 +142,7 @@ func (s *AuthService) VerifyAndSyncUser(ctx context.Context, idToken string, opt
 		return nil, userWriteError(err)
 	}
 
-	// Index contact to Typesense (same write triggers both Firestore + Typesense)
+	// Index contact to Meilisearch (same write triggers both Firestore + search).
 	go func(user models.User) { _ = s.search.IndexContact(context.Background(), user) }(user)
 
 	return &user, nil

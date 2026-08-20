@@ -52,8 +52,8 @@ func TestLoadRejectsInvalidSemanticValues(t *testing.T) {
 
 func TestLoadAllowsDisabledSearchWithoutURL(t *testing.T) {
 	setValidEnvironment(t)
-	t.Setenv("TYPESENSE_API_KEY", "")
-	t.Setenv("TYPESENSE_URL", "")
+	t.Setenv("MEILI_API_KEY", "")
+	t.Setenv("MEILI_URL", "")
 	if _, err := Load(); err != nil {
 		t.Fatalf("disabled search should not require a URL: %v", err)
 	}
@@ -61,10 +61,10 @@ func TestLoadAllowsDisabledSearchWithoutURL(t *testing.T) {
 
 func TestLoadRejectsEnabledSearchWithInvalidURL(t *testing.T) {
 	setValidEnvironment(t)
-	t.Setenv("TYPESENSE_API_KEY", "enabled")
-	t.Setenv("TYPESENSE_URL", "tcp://typesense.example.test:8108")
+	t.Setenv("MEILI_API_KEY", "enabled")
+	t.Setenv("MEILI_URL", "tcp://meilisearch.example.test:7700")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "must use http or https") {
-		t.Fatalf("expected invalid Typesense scheme error, got %v", err)
+		t.Fatalf("expected invalid Meilisearch scheme error, got %v", err)
 	}
 }
 
@@ -89,7 +89,7 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("FIREBASE_SERVICE_ACCOUNT_PATH", "service.json")
 	t.Setenv("FIREBASE_DATABASE_URL", "https://chat.example.test")
 	t.Setenv("FIREBASE_STORAGE_BUCKET", "chat.example.test")
-	t.Setenv("TYPESENSE_API_KEY", "")
+	t.Setenv("MEILI_API_KEY", "")
 }
 
 func clearSupportedEnvironment(t *testing.T) {

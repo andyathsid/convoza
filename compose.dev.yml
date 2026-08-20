@@ -31,26 +31,30 @@ services:
       - ./backend/firebase-service-account.json:/app/firebase-service-account.json:ro
     env_file:
       - ./backend/.env
-    networks:
-      - chatapp
-
-  typesense:
-    image: typesense/typesense:28.0
-    command: --data-dir /data --api-key=${TYPESENSE_API_KEY:-xyz} --enable-cors
-    ports:
-      - "8108:8108"
-    volumes:
-      - typesense_data:/data
-    networks:
-      - chatapp
-
-  typesense-dashboard:
-    image: ghcr.io/bfritscher/typesense-dashboard:latest
-    ports:
-      - "8080:80"
+    environment:
+      MEILI_URL: http://meilisearch:7700
     depends_on:
-      typesense:
-        condition: service_started
+      meilisearch:
+        condition: service_healthy
+    networks:
+      - chatapp
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.13
+    env_file:
+      - ./backend/.env
+    command: ["/bin/sh", "-c", "exec /bin/meilisearch --master-key \"$$MEILI_API_KEY\""]
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili-data:/meili_data
+    environment:
+      MEILI_ENV: development
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:7700/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     networks:
       - chatapp
 
@@ -59,6 +63,6 @@ networks:
     driver: bridge
 
 volumes:
-  typesense_data:
+  meili-data:
   frontend_node_modules:
   frontend_next:

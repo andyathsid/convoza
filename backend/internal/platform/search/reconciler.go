@@ -10,7 +10,7 @@ import (
 	"cloud.google.com/go/firestore"
 )
 
-// Reconciler periodically scans Firestore and re-indexes changed data to Typesense.
+// Reconciler periodically scans Firestore and re-indexes changed data to Meilisearch.
 // It also writes lastReconcileTime to Firestore for frontend coordination.
 type Reconciler struct {
 	sync      *SyncService

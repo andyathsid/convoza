@@ -9,11 +9,8 @@
     "firebase:delete-users": "node firebase/delete-all-users.js",
     "fixtures:fill-chat": "node fixtures/fill-chat-messages.js",
     "fixtures:seed-search": "node fixtures/seed-search-data.js",
-    "search:setup-typesense": "node search/setup-typesense-collections.js",
     "search:sync": "node search/sync-search-index.js",
-    "migration:firebase": "bash migration/firebase-migration.sh",
-    "bench:typesense": "node benchmark/benchmark-search-engine-linux.js --engine typesense",
-    "bench:meilisearch": "node benchmark/benchmark-search-engine-linux.js --engine meilisearch"
+    "migration:firebase": "bash migration/firebase-migration.sh"
   },
   "keywords": [],
   "author": "",
@@ -21,13 +18,10 @@
   "type": "commonjs",
   "dependencies": {
     "@babel/runtime": "^7.29.7",
-    "@meilisearch/instant-meilisearch": "^0.31.2",
     "cli-progress": "^3.12.0",
     "dotenv": "^17.4.2",
     "firebase-admin": "^14.0.0",
     "meilisearch": "^0.58.0",
-    "pg": "^8.22.0",
-    "typesense": "^3.0.6",
-    "typesense-instantsearch-adapter": "^3.0.2"
+    "pg": "^8.22.0"
   }
 }

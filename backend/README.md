@@ -7,10 +7,10 @@ This Go Fiber backend owns durable mutations and business-rule enforcement. Its 
 - `internal/domain` defines transport-neutral entities and repository contracts.
 - `internal/app` owns use cases and ports for identity, storage, membership, and search.
 - `internal/http` owns Fiber handlers, middleware, DTOs, and response mapping.
-- `internal/platform` implements Firebase, Firestore, configuration, and Typesense.
+- `internal/platform` implements Firebase, Firestore, configuration, and Meilisearch.
 - `cmd/app` is the composition root, and every operational command uses the same internal adapters.
 
-Firebase Auth owns account identity and email. Firestore owns public profiles, chat, and message persistence, while Storage validation protects uploaded media before it is persisted. Swagger is served at `http://localhost:5000/swagger/index.html`. Typesense indexes contacts and messages when configured.
+Firebase Auth owns account identity and email. Firestore owns public profiles, chat, and message persistence, while Storage validation protects uploaded media before it is persisted. Swagger is served at `http://localhost:5000/swagger/index.html`. Meilisearch indexes contacts and messages when configured.
 
 ## Configuration
 
@@ -23,11 +23,11 @@ FIREBASE_SERVICE_ACCOUNT_PATH=./firebase-service-account.json
 FIREBASE_DATABASE_URL=https://your-project-default-rtdb.your-region.firebasedatabase.app
 FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
 ALLOWED_ORIGINS=http://localhost:3001
-TYPESENSE_URL=http://localhost:8108
-TYPESENSE_API_KEY=
+MEILI_URL=http://localhost:7700
+MEILI_API_KEY=
 ```
 
-Use `xyz` as the API key for the local Compose Typesense service. `SERVER_READ_TIMEOUT` is measured in seconds. Firebase-only operational commands require `FIREBASE_PROJECT_ID` and `FIREBASE_SERVICE_ACCOUNT_PATH`; commands using presence also require the Realtime Database URL.
+Use `MEILI_API_KEY` as the privileged backend key; the development Compose stack also uses it as Meilisearch's master key. `SERVER_READ_TIMEOUT` is measured in seconds. Firebase-only operational commands require `FIREBASE_PROJECT_ID` and `FIREBASE_SERVICE_ACCOUNT_PATH`; commands using presence also require the Realtime Database URL.
 
 ## Local commands
 

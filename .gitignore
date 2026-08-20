@@ -76,6 +76,8 @@ Thumbs.db
 .env.test.local
 .env.production.local
 .env.*
+!backend/.env.example
+!scripts/.env.example
 
 # Firebase service account 
 firebase-service-account.json

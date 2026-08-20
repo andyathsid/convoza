@@ -1,86 +1,29 @@
-# sync-search-index.js — Environment Variables
+# `sync-search-index.js` environment variables
 
-## Firebase (Required)
+The script rebuilds all Meilisearch indexes from Firestore. It deletes and
+recreates `messages`, `chats`, `contacts`, and `groups` on every run.
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `BACKEND_SA` | No | `backend/firebase-service-account.json` | Path to Firebase service account JSON |
-| `GOOGLE_APPLICATION_CREDENTIALS` | No | — | Fallback if `BACKEND_SA` is not set |
+## Firebase credentials
 
-## Search Engine
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SEARCH_ENGINE` | No | `typesense` | `typesense` / `meilisearch` / `algolia` |
-
-## Typesense
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `TYPESENSE_URL` | No | — | Full URL (overrides host/port) |
-| `TYPESENSE_HOST` | No | `localhost` | Hostname |
-| `TYPESENSE_PORT` | No | `8108` | Port |
-| `TYPESENSE_API_KEY` | No | `xyz` | API key |
+| Variable | Required | Description |
+| --- | --- | --- |
+| `BACKEND_SA` | No | Service-account JSON path. Defaults to `backend/firebase-service-account.json`. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | No | Application Default Credentials fallback. |
 
 ## Meilisearch
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `MEILI_HOST` | No | `localhost` | Hostname |
-| `MEILI_PORT` | No | `7700` | Port |
-| `MEILI_MASTER_KEY` | No | `masterKey` | Master key |
-
-## Algolia
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `ALGOLIA_APP_ID` | Yes | — | Algolia application ID |
-| `ALGOLIA_ADMIN_API_KEY` | Yes | — | Algolia admin API key |
-
----
+| Variable | Required | Description |
+| --- | --- | --- |
+| `MEILI_URL` | Yes | Absolute Meilisearch URL, for example `http://localhost:7700`. |
+| `MEILI_API_KEY` | Yes | Privileged key allowed to delete/create indexes, update settings, and add documents. |
 
 ## Usage
 
-The script reads **one engine per run** via `SEARCH_ENGINE`. To sync to multiple engines, run multiple times:
-
 ```bash
-SEARCH_ENGINE=typesense node scripts/sync-search-index.js
-SEARCH_ENGINE=meilisearch node scripts/sync-search-index.js
+cd scripts
+npm run search:sync
 ```
 
-### Example .env (sync to both Typesense + Meilisearch on VM)
-
-```env
-# Firebase
-BACKEND_SA=./backend/firebase-service-account.json
-
-# Typesense (VM)
-SEARCH_ENGINE=typesense
-TYPESENSE_URL=https://192.168.1.100:8108
-TYPESENSE_API_KEY=your-typesense-api-key
-
-# Meilisearch (VM)
-MEILI_HOST=192.168.1.100
-MEILI_PORT=7700
-MEILI_MASTER_KEY=your-meili-master-key
-```
-
-### Using separate .env files per engine
-
-```bash
-# .env.typesense
-SEARCH_ENGINE=typesense
-TYPESENSE_URL=https://192.168.1.100:8108
-TYPESENSE_API_KEY=your-typesense-api-key
-
-# .env.meili
-SEARCH_ENGINE=meilisearch
-MEILI_HOST=192.168.1.100
-MEILI_PORT=7700
-MEILI_MASTER_KEY=your-meili-master-key
-```
-
-```bash
-dotenv -e .env.typesense -- node scripts/sync-search-index.js
-dotenv -e .env.meili -- node scripts/sync-search-index.js
-```
+The script loads `scripts/.env` when present. Alternatively, set the variables
+in the shell before running it. Do not use the frontend search key: it permits
+searching only and cannot rebuild indexes.

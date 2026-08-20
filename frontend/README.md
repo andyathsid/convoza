@@ -28,7 +28,7 @@ AUTH_COOKIE_NAME=__session
 AUTH_COOKIE_SIGNATURE_KEYS=
 ```
 
-The local server runs on port 3001. Typesense client settings are `NEXT_PUBLIC_SEARCH_ENGINE=typesense`, `NEXT_PUBLIC_TYPESENSE_HOST=localhost`, `NEXT_PUBLIC_TYPESENSE_PORT=8108`, and `NEXT_PUBLIC_TYPESENSE_SEARCH_ONLY_API_KEY=xyz`. When `NEXT_PUBLIC_SEARCH_ENGINE` is unset, the frontend uses its no-results client.
+The local server runs on port 3001. Meilisearch client settings are `NEXT_PUBLIC_SEARCH_ENGINE=meilisearch`, `NEXT_PUBLIC_MEILI_URL=http://localhost:7700`, and `NEXT_PUBLIC_MEILI_SEARCH_KEY`. The search key must be restricted to the `search` action; see the root [development runbook](../docs/meilisearch-development-runbook.md). When `NEXT_PUBLIC_SEARCH_ENGINE` is unset, the frontend uses its no-results client.
 
 ## Local commands
 

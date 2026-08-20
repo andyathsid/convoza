@@ -61,52 +61,54 @@
 :root {
   --radius: 0.75rem;
 
-  /* Chatrail blue/slate palette */
-  --background: oklch(0.99 0.004 248);
-  --foreground: oklch(0.18 0.025 255);
+  /* Forest / Sage — muted green palette, hue ~130, low chroma surfaces */
+  --background: oklch(0.975 0.006 130);
+  --foreground: oklch(0.12 0.022 135);
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.025 255);
+  --card: oklch(0.995 0.005 130);
+  --card-foreground: oklch(0.12 0.022 135);
 
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.025 255);
+  --popover: oklch(0.995 0.005 130);
+  --popover-foreground: oklch(0.12 0.022 135);
 
-  --primary: oklch(0.48 0.13 245);
-  --primary-foreground: oklch(0.99 0.004 248);
+  /* Sage green accent — muted, not vivid */
+  --primary: oklch(0.42 0.10 145);
+  --primary-foreground: oklch(0.98 0.005 130);
 
-  --secondary: oklch(0.96 0.012 248);
-  --secondary-foreground: oklch(0.22 0.03 255);
+  --secondary: oklch(0.92 0.014 135);
+  --secondary-foreground: oklch(0.18 0.03 140);
 
-  --muted: oklch(0.95 0.01 248);
-  --muted-foreground: oklch(0.48 0.025 255);
+  --muted: oklch(0.935 0.010 130);
+  --muted-foreground: oklch(0.46 0.022 135);
 
-  --accent: oklch(0.94 0.04 230);
-  --accent-foreground: oklch(0.22 0.04 255);
+  --accent: oklch(0.90 0.016 130);
+  --accent-foreground: oklch(0.16 0.025 135);
 
-  --destructive: oklch(0.58 0.22 28);
-  --destructive-foreground: oklch(0.99 0.004 248);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.99 0.005 130);
 
-  --border: oklch(0.9 0.01 248);
-  --input: oklch(0.9 0.01 248);
-  --ring: oklch(0.67 0.14 190);
+  --border: oklch(0.875 0.013 130);
+  --input: oklch(0.875 0.013 130);
+  --ring: oklch(0.42 0.10 145);
 
-  --chart-1: oklch(0.72 0.12 220);
-  --chart-2: oklch(0.72 0.12 180);
-  --chart-3: oklch(0.76 0.14 55);
-  --chart-4: oklch(0.72 0.16 28);
-  --chart-5: oklch(0.48 0.04 255);
+  /* Charts — earthy greens */
+  --chart-1: oklch(0.42 0.10 145);
+  --chart-2: oklch(0.55 0.09 140);
+  --chart-3: oklch(0.65 0.08 100);
+  --chart-4: oklch(0.35 0.08 160);
+  --chart-5: oklch(0.70 0.06 80);
 
-  --sidebar: oklch(0.97 0.008 248);
-  --sidebar-foreground: oklch(0.18 0.025 255);
-  --sidebar-primary: oklch(0.48 0.13 245);
-  --sidebar-primary-foreground: oklch(0.99 0.004 248);
-  --sidebar-accent: oklch(0.93 0.018 248);
-  --sidebar-accent-foreground: oklch(0.22 0.03 255);
-  --sidebar-border: oklch(0.89 0.012 248);
-  --sidebar-ring: oklch(0.67 0.14 190);
+  --sidebar: oklch(0.955 0.008 130);
+  --sidebar-foreground: oklch(0.12 0.022 135);
+  --sidebar-primary: oklch(0.42 0.10 145);
+  --sidebar-primary-foreground: oklch(0.98 0.005 130);
+  --sidebar-accent: oklch(0.91 0.014 135);
+  --sidebar-accent-foreground: oklch(0.18 0.03 140);
+  --sidebar-border: oklch(0.875 0.013 130);
+  --sidebar-ring: oklch(0.42 0.10 145);
 
-  --primary-emphasis: oklch(0.36 0.14 245);
-  --primary-muted-foreground: oklch(0.42 0.055 250);
+  --primary-emphasis: oklch(0.26 0.09 145);
+  --primary-muted-foreground: oklch(0.40 0.05 140);
 }
 
 /* ── emoji-picker-react theme overrides ── */
@@ -154,51 +156,53 @@ aside.EmojiPickerReact {
 }
 
 .dark {
-  --background: oklch(0.14 0.02 255);
-  --foreground: oklch(0.97 0.006 248);
+  /* Forest dark — near-black with a very faint green tint */
+  --background: oklch(0.11 0.007 135);
+  --foreground: oklch(0.91 0.007 130);
 
-  --card: oklch(0.18 0.022 255);
-  --card-foreground: oklch(0.97 0.006 248);
+  --card: oklch(0.15 0.009 135);
+  --card-foreground: oklch(0.91 0.007 130);
 
-  --popover: oklch(0.18 0.022 255);
-  --popover-foreground: oklch(0.97 0.006 248);
+  --popover: oklch(0.18 0.009 135);
+  --popover-foreground: oklch(0.91 0.007 130);
 
-  --primary: oklch(0.74 0.11 220);
-  --primary-foreground: oklch(0.13 0.02 255);
+  /* Brighter sage in dark so it stays visible */
+  --primary: oklch(0.60 0.13 145);
+  --primary-foreground: oklch(0.10 0.015 145);
 
-  --secondary: oklch(0.23 0.024 255);
-  --secondary-foreground: oklch(0.97 0.006 248);
+  --secondary: oklch(0.22 0.012 135);
+  --secondary-foreground: oklch(0.91 0.007 130);
 
-  --muted: oklch(0.23 0.024 255);
-  --muted-foreground: oklch(0.72 0.025 250);
+  --muted: oklch(0.18 0.009 135);
+  --muted-foreground: oklch(0.62 0.016 130);
 
-  --accent: oklch(0.25 0.055 230);
-  --accent-foreground: oklch(0.94 0.035 225);
+  --accent: oklch(0.25 0.013 135);
+  --accent-foreground: oklch(0.91 0.007 130);
 
-  --destructive: oklch(0.7 0.18 24);
-  --destructive-foreground: oklch(0.99 0.004 248);
+  --destructive: oklch(0.65 0.22 25);
+  --destructive-foreground: oklch(0.98 0.005 130);
 
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.68 0.14 190);
+  --border: oklch(0.28 0.011 135);
+  --input: oklch(0.23 0.011 135);
+  --ring: oklch(0.60 0.13 145);
 
-  --chart-1: oklch(0.74 0.11 220);
-  --chart-2: oklch(0.72 0.12 180);
-  --chart-3: oklch(0.76 0.14 55);
-  --chart-4: oklch(0.72 0.16 28);
-  --chart-5: oklch(0.74 0.025 250);
+  --chart-1: oklch(0.60 0.13 145);
+  --chart-2: oklch(0.50 0.10 140);
+  --chart-3: oklch(0.68 0.09 100);
+  --chart-4: oklch(0.42 0.09 160);
+  --chart-5: oklch(0.72 0.07 80);
 
-  --sidebar: oklch(0.16 0.02 255);
-  --sidebar-foreground: oklch(0.97 0.006 248);
-  --sidebar-primary: oklch(0.74 0.11 220);
-  --sidebar-primary-foreground: oklch(0.13 0.02 255);
-  --sidebar-accent: oklch(0.23 0.024 255);
-  --sidebar-accent-foreground: oklch(0.97 0.006 248);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.68 0.14 190);
+  --sidebar: oklch(0.09 0.006 135);
+  --sidebar-foreground: oklch(0.91 0.007 130);
+  --sidebar-primary: oklch(0.60 0.13 145);
+  --sidebar-primary-foreground: oklch(0.10 0.015 145);
+  --sidebar-accent: oklch(0.22 0.012 135);
+  --sidebar-accent-foreground: oklch(0.91 0.007 130);
+  --sidebar-border: oklch(0.26 0.011 135);
+  --sidebar-ring: oklch(0.60 0.13 145);
 
-  --primary-emphasis: oklch(0.78 0.11 220);
-  --primary-muted-foreground: oklch(0.72 0.04 245);
+  --primary-emphasis: oklch(0.78 0.10 145);
+  --primary-muted-foreground: oklch(0.65 0.06 142);
 }
 
 html {
@@ -224,7 +228,7 @@ body {
 
 @keyframes highlight-flash {
   0% {
-    background-color: color-mix(in oklch, var(--primary) 28%, transparent);
+    background-color: oklch(0.85 0.12 130);
   }
   100% {
     background-color: transparent;

@@ -2,9 +2,11 @@ services:
   meilisearch:                                                                                                                          
     image: getmeili/meilisearch:latest                                                                                                  
     container_name: meili_bench                                                                                                         
+    env_file:
+      - ./backend/.env
     # This is a value-less Meilisearch flag, so passing it as a command avoids
     # Docker Compose assigning an invalid environment-variable value.
-    command: ["/bin/meilisearch", "--experimental-reduce-indexing-memory-usage"]
+    command: ["/bin/sh", "-c", "exec /bin/meilisearch --master-key \"$$MEILI_API_KEY\" --experimental-reduce-indexing-memory-usage"]
     environment:                                                                                                                        
       - MEILI_ENV=development                                                                                                            
       # A 2 GiB VM needs headroom for Meilisearch's non-indexing memory,
@@ -13,27 +15,8 @@ services:
       # One indexing worker trades throughput for lower per-thread allocation
       # pressure on this memory-constrained benchmark host.
       # - MEILI_MAX_INDEXING_THREADS=${MEILI_MAX_INDEXING_THREADS:-1}
-      - MEILI_MASTER_KEY=masterKey        
     ports:                                                                                                                              
       - "7700:7700"                                                                                                                     
     volumes:                                                                                                                            
       - ./meili_data:/meili_data                                                                                                        
     restart: unless-stopped                                                                                                             
-                                                                                                                                        
-  typesense:                                                                                                                            
-    image: typesense/typesense:29.1                                                                                                   
-    container_name: typesense_bench                                                                                                     
-    # RocksDB keeps SST files open as the corpus grows, so Docker's 1024-file
-    # soft limit becomes the benchmark ceiling before CPU, RAM, or disk capacity.
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
-    environment:                                                                                                                        
-      - TYPESENSE_API_KEY=xyz                                                                                            
-      - TYPESENSE_DATA_DIR=/data                                                                                                        
-    ports:                                                                                                                              
-      - "8108:8108"                                                                                                                     
-    volumes:                                                                                                                            
-      - ./typesense_data:/data                                                                                                          
-    restart: unless-stopped  

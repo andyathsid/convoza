@@ -33,36 +33,19 @@ if (getApps().length === 0) {
 }
 
 const db = getFirestore();
-const ENGINE = process.env.SEARCH_ENGINE || 'typesense';
-
-async function getTypesenseClient() {
-  const Typesense = require('typesense');
-
-  let host, port, protocol;
-  const url = process.env.TYPESENSE_URL;
-  if (url) {
-    const parsed = new URL(url);
-    host = parsed.hostname;
-    port = parseInt(parsed.port) || (parsed.protocol === 'https:' ? 443 : 80);
-    protocol = parsed.protocol.replace(':', '');
-  } else {
-    host = process.env.TYPESENSE_HOST || 'localhost';
-    port = parseInt(process.env.TYPESENSE_PORT || '8108');
-    protocol = 'http';
-  }
-
-  return new Typesense.Client({
-    nodes: [{ host, port, protocol }],
-    apiKey: process.env.TYPESENSE_API_KEY || 'xyz',
-    connectionTimeoutSeconds: 10,
-  });
-}
-
 async function getMeiliClient() {
   const { Meilisearch } = require('meilisearch');
+  const host = process.env.MEILI_URL;
+  const apiKey = process.env.MEILI_API_KEY;
+  if (!host) {
+    throw new Error('MEILI_URL is required, for example http://localhost:7700.');
+  }
+  if (!apiKey) {
+    throw new Error('MEILI_API_KEY is required and must permit index creation, settings, and document writes.');
+  }
   return new Meilisearch({
-    host: process.env.MEILI_URL || `http://${process.env.MEILI_HOST || 'localhost'}:${process.env.MEILI_PORT || '7700'}`,
-    apiKey: process.env.MEILI_MASTER_KEY || 'masterKey',
+    host,
+    apiKey,
   });
 }
 
@@ -70,57 +53,6 @@ async function waitForMeiliTask(taskPromise) {
   // Benchmarking and one-shot sync both need writes fully applied before continuing,
   // otherwise follow-up reads can measure queueing latency instead of index state.
   return taskPromise.waitTask();
-}
-
-async function setupTypesense(client) {
-  for (const name of ['messages', 'chats', 'contacts', 'groups']) {
-    try { await client.collections(name).delete(); } catch (_) {}
-  }
-
-  await client.collections().create({
-    name: 'messages',
-    fields: [
-      { name: 'content', type: 'string' },
-      { name: 'documentName', type: 'string', optional: true },
-      { name: 'chatId', type: 'string' },
-      { name: 'participants', type: 'string[]' },
-      { name: 'createdAt', type: 'int64' },
-      { name: 'senderId', type: 'string', optional: true, index: false },
-      { name: 'mediaType', type: 'string', optional: true, index: false },
-      { name: 'deliveredTo', type: 'string[]', optional: true, index: false },
-      { name: 'readBy', type: 'string[]', optional: true, index: false },
-    ],
-    default_sorting_field: 'createdAt',
-  });
-
-  await client.collections().create({
-    name: 'chats',
-    fields: [
-      { name: 'groupName', type: 'string', optional: true },
-      { name: 'participantNames', type: 'string[]' },
-      { name: 'participants', type: 'string[]' },
-      { name: 'updatedAt', type: 'int64' },
-      { name: 'isGroup', type: 'bool', optional: true, index: false },
-    ],
-    default_sorting_field: 'updatedAt',
-  });
-
-  await client.collections().create({
-    name: 'contacts',
-    fields: [
-      { name: 'username', type: 'string' },
-    ],
-  });
-
-  await client.collections().create({
-    name: 'groups',
-    fields: [
-      { name: 'participantNames', type: 'string[]' },
-      { name: 'participants', type: 'string[]' },
-      { name: 'updatedAt', type: 'int64' },
-    ],
-    default_sorting_field: 'updatedAt',
-  });
 }
 
 async function setupMeili(client) {
@@ -165,28 +97,6 @@ async function setupMeili(client) {
   }));
 }
 
-async function pushTypesenseMessages(client, docs) {
-  for (let i = 0; i < docs.length; i += 100) {
-    const batch = docs.slice(i, i + 100);
-    await client.collections('messages').documents().import(batch);
-  }
-}
-
-async function pushTypesenseChats(client, docs) {
-  if (docs.length === 0) return;
-  await client.collections('chats').documents().import(docs);
-}
-
-async function pushTypesenseContacts(client, docs) {
-  if (docs.length === 0) return;
-  await client.collections('contacts').documents().import(docs);
-}
-
-async function pushTypesenseGroups(client, docs) {
-  if (docs.length === 0) return;
-  await client.collections('groups').documents().import(docs);
-}
-
 async function pushMeiliMessages(client, docs) {
   const index = client.index('messages');
   for (let i = 0; i < docs.length; i += 1000) {
@@ -212,7 +122,7 @@ async function pushMeiliGroups(client, docs) {
 
 (async () => {
   try {
-    console.log(`Search engine: ${ENGINE}\n`);
+    console.log('Search engine: Meilisearch\n');
 
      console.log('Loading users from Firestore...');
      const usersSnap = await db.collection('users').get();
@@ -253,17 +163,8 @@ async function pushMeiliGroups(client, docs) {
     chatsSnap.forEach(doc => chatDocs.push({ id: doc.id, ...doc.data() }));
     console.log(`Found ${chatDocs.length} chats.\n`);
 
-    let searchClient;
-    if (ENGINE === 'typesense') {
-      searchClient = await getTypesenseClient();
-      await setupTypesense(searchClient);
-    } else if (ENGINE === 'meilisearch') {
-      searchClient = await getMeiliClient();
-      await setupMeili(searchClient);
-    } else {
-      console.error(`Unknown search engine: ${ENGINE}`);
-      process.exit(1);
-    }
+    const searchClient = await getMeiliClient();
+    await setupMeili(searchClient);
 
     const allMessageDocs = [];
     const allChatDocs = [];
@@ -348,19 +249,11 @@ async function pushMeiliGroups(client, docs) {
      }
      console.log(`Loaded ${allContactDocs.length} contacts.\n`);
 
-    console.log(`\nPushing ${allChatDocs.length} chats, ${allGroupDocs.length} groups, ${allContactDocs.length} contacts, and ${allMessageDocs.length} messages to ${ENGINE}...`);
-
-    if (ENGINE === 'typesense') {
-      await pushTypesenseChats(searchClient, allChatDocs);
-      await pushTypesenseGroups(searchClient, allGroupDocs);
-      await pushTypesenseContacts(searchClient, allContactDocs);
-      await pushTypesenseMessages(searchClient, allMessageDocs);
-    } else if (ENGINE === 'meilisearch') {
-      await pushMeiliChats(searchClient, allChatDocs);
-      await pushMeiliGroups(searchClient, allGroupDocs);
-      await pushMeiliContacts(searchClient, allContactDocs);
-      await pushMeiliMessages(searchClient, allMessageDocs);
-    }
+    console.log(`\nPushing ${allChatDocs.length} chats, ${allGroupDocs.length} groups, ${allContactDocs.length} contacts, and ${allMessageDocs.length} messages to Meilisearch...`);
+    await pushMeiliChats(searchClient, allChatDocs);
+    await pushMeiliGroups(searchClient, allGroupDocs);
+    await pushMeiliContacts(searchClient, allContactDocs);
+    await pushMeiliMessages(searchClient, allMessageDocs);
 
     console.log(`\nDone. ${allChatDocs.length} chats, ${allGroupDocs.length} groups, ${allContactDocs.length} contacts, ${allMessageDocs.length} messages indexed. ${totalSystemSkipped} system messages skipped.`);
     process.exit(0);

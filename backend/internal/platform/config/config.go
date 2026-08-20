@@ -45,8 +45,8 @@ type environment struct {
 	FirebaseDatabaseURL        string `mapstructure:"FIREBASE_DATABASE_URL"`
 	FirebaseStorageBucket      string `mapstructure:"FIREBASE_STORAGE_BUCKET"`
 	AllowedOrigins             string `mapstructure:"ALLOWED_ORIGINS"`
-	TypesenseURL               string `mapstructure:"TYPESENSE_URL"`
-	TypesenseAPIKey            string `mapstructure:"TYPESENSE_API_KEY"`
+	MeiliURL                    string `mapstructure:"MEILI_URL"`
+	MeiliAPIKey                 string `mapstructure:"MEILI_API_KEY"`
 }
 
 var supportedEnvironmentKeys = []string{
@@ -59,8 +59,8 @@ var supportedEnvironmentKeys = []string{
 	"FIREBASE_DATABASE_URL",
 	"FIREBASE_STORAGE_BUCKET",
 	"ALLOWED_ORIGINS",
-	"TYPESENSE_URL",
-	"TYPESENSE_API_KEY",
+	"MEILI_URL",
+	"MEILI_API_KEY",
 }
 
 func Load() (Config, error) {
@@ -112,8 +112,8 @@ func load() (Config, error) {
 			StorageBucket:      strings.TrimSpace(env.FirebaseStorageBucket),
 		},
 		Search: Search{
-			URL:    strings.TrimSpace(env.TypesenseURL),
-			APIKey: strings.TrimSpace(env.TypesenseAPIKey),
+			URL:    strings.TrimSpace(env.MeiliURL),
+			APIKey: strings.TrimSpace(env.MeiliAPIKey),
 		},
 		AllowedOrigins: strings.TrimSpace(env.AllowedOrigins),
 	}, nil
@@ -182,7 +182,7 @@ func (c Search) Validate() error {
 	if c.APIKey == "" {
 		return nil
 	}
-	return validateHTTPURL("TYPESENSE_URL", c.URL)
+	return validateHTTPURL("MEILI_URL", c.URL)
 }
 
 func validateHTTPURL(name, value string) error {
