@@ -48,12 +48,14 @@ func run(ctx context.Context) error {
 	}
 	defer store.Close()
 	var indexer application.SearchIndexer = application.NopSearchIndexer{}
+	var searchClient transport.SearchClient
 	if cfg.Search.APIKey != "" {
 		client := search.NewMeiliClient(cfg.Search)
 		if err := search.EnsureIndexes(client); err != nil {
 			log.Printf("meilisearch index setup warning: %v", err)
 		}
 		indexer = search.NewIndexer(search.NewSyncService(client), store, store)
+		searchClient = client
 	}
 	services := application.NewServices(application.Dependencies{
 		Users: store, Profiles: store, Chats: store, Messages: store,
@@ -67,7 +69,7 @@ func run(ctx context.Context) error {
 	transport.FiberMiddleware(server, cfg.AllowedOrigins)
 	transport.SwaggerRoute(server)
 	transport.PublicRoutes(server, authController, cfg.AllowedOrigins)
-	transport.PrivateRoutes(server, authController, transport.NewChatController(services.Chat), transport.NewMessageController(services.Message), firebaseClients.Identity, cfg.Auth.SessionCookieName, cfg.AllowedOrigins)
+	transport.PrivateRoutes(server, authController, transport.NewChatController(services.Chat), transport.NewMessageController(services.Message), transport.NewSearchController(searchClient), firebaseClients.Identity, cfg.Auth.SessionCookieName, cfg.AllowedOrigins)
 	transport.NotFoundRoute(server)
 	return serve(server, fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port))
 }

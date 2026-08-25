@@ -72,7 +72,7 @@ Smoke check: register two users in separate browser sessions, start a chat, send
 
 Meilisearch starts with the Compose stack. Configure its privileged key in
 `backend/.env`, then follow the [Meilisearch development runbook](docs/meilisearch-development-runbook.md)
-to create a browser search key, seed the indexes, and verify search.
+to enable the authenticated backend search proxy, seed the indexes, and verify search.
 
 ## Daily development and repository map
 

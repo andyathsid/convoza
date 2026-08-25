@@ -10,6 +10,7 @@ func PrivateRoutes(
 	auth *AuthController,
 	chat *ChatController,
 	message *MessageController,
+	search *SearchController,
 	identity app.IdentityProvider,
 	sessionCookieName string,
 	allowedOrigins string,
@@ -34,6 +35,7 @@ func PrivateRoutes(
 	route.Post("/message/deliver", message.MarkDelivered)
 	route.Post("/message/read", message.MarkRead)
 	route.Delete("/chat/:chatId/message/:messageId", message.DeleteMessage)
+	route.Post("/search/multi-search", search.MultiSearch)
 
 	// Users
 	route.Post("/users/avatar", auth.UpdateAvatar)

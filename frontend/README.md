@@ -25,7 +25,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 NEXT_PUBLIC_FIREBASE_DATABASE_URL=
 ```
 
-The local server runs on port 3001. Meilisearch client settings are `NEXT_PUBLIC_SEARCH_ENGINE=meilisearch`, `NEXT_PUBLIC_MEILI_URL=http://localhost:7700`, and `NEXT_PUBLIC_MEILI_SEARCH_KEY`. The search key must be restricted to the `search` action; see the root [development runbook](../docs/meilisearch-development-runbook.md). When `NEXT_PUBLIC_SEARCH_ENGINE` is unset, the frontend uses its no-results client.
+The local server runs on port 3001. Set `NEXT_PUBLIC_SEARCH_ENGINE=meilisearch` to enable search. The frontend sends Instant Meilisearch requests to the authenticated backend at `NEXT_PUBLIC_API_URL/search/multi-search`; the backend applies user access filters and keeps Meilisearch private. When `NEXT_PUBLIC_SEARCH_ENGINE` is unset, the frontend uses its no-results client.
 
 For production, set `NEXT_PUBLIC_API_URL=https://convoza-api.andakaraas.com/api/v1`. The Go API must allow `https://convoza.andakaraas.com` as its exact credentialed CORS origin.
 

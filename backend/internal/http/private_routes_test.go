@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	application "github.com/andyathsid/backend/internal/app"
 	"github.com/andyathsid/backend/internal/domain"
 	"github.com/gofiber/fiber/v2"
+	"github.com/meilisearch/meilisearch-go"
 )
 
 func TestPrivateRoutesAreRegisteredAndAuthenticated(t *testing.T) {
@@ -33,6 +35,7 @@ func TestPrivateRoutesAreRegisteredAndAuthenticated(t *testing.T) {
 		"POST /api/v1/message/deliver":                      false,
 		"POST /api/v1/message/read":                         false,
 		"DELETE /api/v1/chat/:chatId/message/:messageId":    false,
+		"POST /api/v1/search/multi-search":                  false,
 		"POST /api/v1/users/avatar":                         false,
 	}
 	for _, route := range server.GetRoutes() {
@@ -53,6 +56,50 @@ func TestPrivateRoutesAreRegisteredAndAuthenticated(t *testing.T) {
 	}
 	if response.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated private route returned %d", response.StatusCode)
+	}
+}
+
+func TestMultiSearchRestrictsPrivateIndexesToAuthenticatedParticipant(t *testing.T) {
+	var received *meilisearch.MultiSearchRequest
+	search := &fakeSearchClient{multiSearch: func(_ context.Context, request *meilisearch.MultiSearchRequest) (*meilisearch.MultiSearchResponse, error) {
+		received = request
+		return &meilisearch.MultiSearchResponse{}, nil
+	}}
+	server, _, _ := privateTestServerWithSearch(&fakeUserRepository{}, &fakeMessageRepository{}, &fakeSearchIndexer{}, search)
+	request := authenticatedRequest(http.MethodPost, "/api/v1/search/multi-search", strings.NewReader(`{"queries":[{"indexUid":"messages","q":"hello","filter":"chatId = \"chat-a\""},{"indexUid":"contacts","q":"bob"}]}`))
+	request.Header.Set("Content-Type", "application/json")
+	response, err := server.Test(request, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("search returned %d", response.StatusCode)
+	}
+	if received == nil || len(received.Queries) != 2 {
+		t.Fatalf("unexpected search request: %#v", received)
+	}
+	filters, ok := received.Queries[0].Filter.([]interface{})
+	if !ok || len(filters) != 2 || filters[0] != `participants = "alice"` || filters[1] != `chatId = "chat-a"` {
+		t.Fatalf("private-index filters were not restricted: %#v", received.Queries[0].Filter)
+	}
+	if received.Queries[1].Filter != nil {
+		t.Fatalf("contacts filter changed unexpectedly: %#v", received.Queries[1].Filter)
+	}
+}
+
+func TestMultiSearchRejectsDisallowedIndexes(t *testing.T) {
+	search := &fakeSearchClient{multiSearch: func(context.Context, *meilisearch.MultiSearchRequest) (*meilisearch.MultiSearchResponse, error) {
+		return nil, errors.New("search client should not be called")
+	}}
+	server, _, _ := privateTestServerWithSearch(&fakeUserRepository{}, &fakeMessageRepository{}, &fakeSearchIndexer{}, search)
+	request := authenticatedRequest(http.MethodPost, "/api/v1/search/multi-search", strings.NewReader(`{"queries":[{"indexUid":"private-admin","q":"hello"}]}`))
+	request.Header.Set("Content-Type", "application/json")
+	response, err := server.Test(request, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusForbidden {
+		t.Fatalf("disallowed index returned %d", response.StatusCode)
 	}
 }
 
@@ -141,13 +188,28 @@ func TestMarkReadPreservesClearedUnreadResponse(t *testing.T) {
 }
 
 func privateTestServer(users domain.UserRepository, messages domain.MessageRepository, search application.SearchIndexer) (*fiber.App, *application.ChatService, *application.MessageService) {
+	return privateTestServerWithSearch(users, messages, search, &fakeSearchClient{})
+}
+
+func privateTestServerWithSearch(users domain.UserRepository, messages domain.MessageRepository, search application.SearchIndexer, searchClient SearchClient) (*fiber.App, *application.ChatService, *application.MessageService) {
 	identity := fakeIdentityProvider{identity: application.Identity{UID: "alice", Email: "alice@example.test", Name: "Alice"}}
 	authService := application.NewAuthService(users, fakeProfiles{}, identity, search, fakeObjectStore{})
 	chatService := application.NewChatService(users, nil, search, nil, fakeObjectStore{})
 	messageService := application.NewMessageService(users, messages, search, fakeObjectStore{})
 	server := fiber.New()
-	PrivateRoutes(server, NewAuthController(authService, testSessionCookieConfig()), NewChatController(chatService), NewMessageController(messageService), identity, testSessionCookieName, "https://app.example.test")
+	PrivateRoutes(server, NewAuthController(authService, testSessionCookieConfig()), NewChatController(chatService), NewMessageController(messageService), NewSearchController(searchClient), identity, testSessionCookieName, "https://app.example.test")
 	return server, chatService, messageService
+}
+
+type fakeSearchClient struct {
+	multiSearch func(context.Context, *meilisearch.MultiSearchRequest) (*meilisearch.MultiSearchResponse, error)
+}
+
+func (f *fakeSearchClient) MultiSearchWithContext(ctx context.Context, request *meilisearch.MultiSearchRequest) (*meilisearch.MultiSearchResponse, error) {
+	if f.multiSearch != nil {
+		return f.multiSearch(ctx, request)
+	}
+	return &meilisearch.MultiSearchResponse{}, nil
 }
 
 func authenticatedRequest(method, path string, body io.Reader) *http.Request {

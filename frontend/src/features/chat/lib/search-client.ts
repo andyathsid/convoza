@@ -96,9 +96,12 @@ export async function getSearchClient(): Promise<SearchClient> {
 
   if (engine === 'meilisearch') {
     const { instantMeiliSearch } = await import('@meilisearch/instant-meilisearch');
-    const host = process.env.NEXT_PUBLIC_MEILI_URL || 'http://localhost:7700';
-    const key = process.env.NEXT_PUBLIC_MEILI_SEARCH_KEY || '';
-    const { searchClient } = instantMeiliSearch(host, key);
+    const apiURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+    // The API route applies the authenticated user's mandatory filters and
+    // keeps the privileged Meilisearch key inside the VPS network.
+    const { searchClient } = instantMeiliSearch(`${apiURL}/search`, '', {
+      requestInit: { credentials: 'include' },
+    });
     _client = createDebuggedClient(searchClient as unknown as SearchClient, 'meilisearch');
   } else {
     _client = mockClient;
