@@ -14,7 +14,7 @@ func FiberMiddleware(a *fiber.App, origins string) {
 		cors.New(cors.Config{
 			AllowOrigins:     origins,
 			AllowCredentials: true,
-			AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+			AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Meilisearch-Client",
 			AllowMethods:     "GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS",
 		}),
 		// Add simple logger.
