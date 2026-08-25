@@ -15,29 +15,14 @@ services:
       ALLOWED_ORIGINS: https://${CONVOZA_DOMAIN:?set CONVOZA_DOMAIN}
       MEILI_URL: http://meilisearch:7700
       FIREBASE_SERVICE_ACCOUNT_PATH: /run/secrets/firebase_service_account
-    expose:
-      - "5000"
+    # The shared host Nginx reverse proxy is the only public entry point.
+    ports:
+      - "127.0.0.1:5000:5000"
     secrets:
       - firebase_service_account
     depends_on:
       meilisearch:
         condition: service_healthy
-    networks:
-      - convoza
-
-  nginx:
-    image: nginx:1.31.4-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/convoza.conf:/etc/nginx/conf.d/default.conf:ro
-      # Provide fullchain.pem and privkey.pem from the certificate authority.
-      - ./secrets/tls:/etc/nginx/tls:ro
-    depends_on:
-      backend:
-        condition: service_started
     networks:
       - convoza
 
