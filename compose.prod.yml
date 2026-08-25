@@ -1,0 +1,95 @@
+name: convoza
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    image: ghcr.io/andyathsid/convoza-backend:prod
+    restart: unless-stopped
+    env_file:
+      - ./secrets/backend.env
+    environment:
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 5000
+      ALLOWED_ORIGINS: https://${CONVOZA_DOMAIN:?set CONVOZA_DOMAIN}
+      MEILI_URL: http://meilisearch:7700
+      FIREBASE_SERVICE_ACCOUNT_PATH: /run/secrets/firebase_service_account
+    expose:
+      - "5000"
+    secrets:
+      - firebase_service_account
+    depends_on:
+      meilisearch:
+        condition: service_healthy
+    networks:
+      - convoza
+
+  nginx:
+    image: nginx:1.31.4-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/convoza.conf:/etc/nginx/conf.d/default.conf:ro
+      # Provide fullchain.pem and privkey.pem from the certificate authority.
+      - ./secrets/tls:/etc/nginx/tls:ro
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - convoza
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.53
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        exec /bin/meilisearch \
+          --master-key "$$(cat /run/secrets/meilisearch_master_key)" \
+          --task-webhook-url http://otel-collector:8088/meilisearch/tasks \
+          --task-webhook-authorization-header "Bearer $$(cat /run/secrets/meilisearch_webhook_token)" \
+          --experimental-allowed-ip-networks 127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+    environment:
+      MEILI_ENV: production
+      MEILI_EXPERIMENTAL_ENABLE_METRICS: "true"
+    volumes:
+      - meilisearch_data:/meili_data
+    secrets:
+      - meilisearch_master_key
+      - meilisearch_webhook_token
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1:7700/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+    networks:
+      convoza: {}
+      convoza_observability:
+        aliases:
+          - meilisearch
+
+networks:
+  convoza:
+    driver: bridge
+
+  # Created and owned by this Convoza deployment.
+  # The monitoring Compose project joins it as an external network.
+  convoza_observability:
+    name: convoza-observability
+    driver: bridge
+
+volumes:
+  meilisearch_data:
+
+secrets:
+  firebase_service_account:
+    file: ./secrets/firebase-service-account.json
+  meilisearch_master_key:
+    file: ./secrets/meilisearch_master_key
+  meilisearch_webhook_token:
+    file: ./secrets/meilisearch_webhook_token

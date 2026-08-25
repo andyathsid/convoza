@@ -75,6 +75,7 @@ Thumbs.db
 .env.development.local
 .env.test.local
 .env.production.local
+.env.prod
 .env.*
 !backend/.env.example
 !scripts/.env.example
@@ -88,6 +89,7 @@ firebase-service-account-*.json
 
 # Docker override 
 docker-compose.override.yml
+secrets/
 
 # ---- Project-specific ----
 
