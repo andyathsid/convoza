@@ -7,6 +7,8 @@ import (
 
 	googlefirestore "cloud.google.com/go/firestore"
 	"github.com/andyathsid/backend/internal/domain"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var _ domain.UserRepository = (*FirestoreClient)(nil)
@@ -43,9 +45,10 @@ func (fs *FirestoreClient) Upsert(ctx context.Context, user *domain.User) error 
 	now := time.Now()
 	return mapFirestoreError(fs.Client.RunTransaction(ctx, func(ctx context.Context, transaction *googlefirestore.Transaction) error {
 		document, err := transaction.Get(ref)
-		if err != nil {
+		if err != nil && status.Code(err) != codes.NotFound {
 			return err
 		}
+		isNewUser := err != nil
 		data := map[string]any{
 			"username":           user.Username,
 			"usernameNormalized": strings.ToLower(strings.TrimSpace(user.Username)),
@@ -53,7 +56,7 @@ func (fs *FirestoreClient) Upsert(ctx context.Context, user *domain.User) error 
 			"updatedAt":          now,
 			"email":              googlefirestore.Delete,
 		}
-		if !document.Exists() {
+		if isNewUser || !document.Exists() {
 			data["createdAt"] = now
 			user.CreatedAt = now
 		}
