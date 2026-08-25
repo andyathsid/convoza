@@ -25,7 +25,7 @@ import {
 } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 import { useAuth, getFirebaseEmail } from "@/features/auth"
-import { api } from "@/lib/api"
+import { api, createApiSession } from "@/lib/api"
 import {
   Sheet,
   SheetContent,
@@ -238,8 +238,8 @@ function ProfileView({
       await updateProfile(auth.currentUser, { displayName: displayName.trim() })
       onUserUpdate({ ...user, username: displayName.trim() })
 
-      // Sync username to backend
-      await api.post("/auth/sync", { username: displayName.trim() })
+      // Refresh the backend API session so the profile update is synchronized.
+      await createApiSession(auth.currentUser, { username: displayName.trim() })
 
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -389,8 +389,7 @@ function ProvidersView({
       await linkWithPopup(currentUser, provider)
 
       // Sync with backend after linking
-      const idToken = await currentUser.getIdToken(true)
-      const res = await api.post("/auth/sync", { firebase_uid: currentUser.uid })
+      const res = await createApiSession(currentUser)
       onUserUpdate(res.user)
     } catch (err: unknown) {
       if (err instanceof Error && err.message.includes("auth/credential-already-in-use")) {
@@ -690,7 +689,7 @@ function SetPasswordForm() {
       await linkWithCredential(auth.currentUser, credential)
 
       // Sync with backend after linking
-      await api.post("/auth/sync", { firebase_uid: auth.currentUser.uid })
+      await createApiSession(auth.currentUser)
 
       setSuccess(true)
       form.reset()

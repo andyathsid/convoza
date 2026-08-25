@@ -51,7 +51,7 @@ services:
     environment:
       MEILI_ENV: development
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:7700/health"]
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1:7700/health"]
       interval: 5s
       timeout: 3s
       retries: 20

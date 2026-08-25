@@ -2,7 +2,7 @@
 
 For first-time local setup, use the [root README](../README.md).
 
-This Next.js 16 application uses App Router route groups: `(auth)` serves sign-in and sign-up flows, while `(main)` holds authenticated chat routes. `src/proxy.ts` is the cookie-auth boundary, built with `next-firebase-auth-edge`.
+This Next.js 16 application uses App Router route groups: `(auth)` serves sign-in and sign-up flows, while `(main)` holds authenticated chat routes. Firebase client auth powers the realtime Firebase SDKs, the Go API owns its separate HTTP-only session cookie.
 
 Use npm as the package manager for this frontend. Yarn may work, but the project is not yet optimized for it.
 
@@ -23,12 +23,11 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 NEXT_PUBLIC_FIREBASE_DATABASE_URL=
-FIREBASE_SERVICE_ACCOUNT_PATH=./firebase-service-account.json
-AUTH_COOKIE_NAME=__session
-AUTH_COOKIE_SIGNATURE_KEYS=
 ```
 
 The local server runs on port 3001. Meilisearch client settings are `NEXT_PUBLIC_SEARCH_ENGINE=meilisearch`, `NEXT_PUBLIC_MEILI_URL=http://localhost:7700`, and `NEXT_PUBLIC_MEILI_SEARCH_KEY`. The search key must be restricted to the `search` action; see the root [development runbook](../docs/meilisearch-development-runbook.md). When `NEXT_PUBLIC_SEARCH_ENGINE` is unset, the frontend uses its no-results client.
+
+For production, set `NEXT_PUBLIC_API_URL=https://convoza-api.andakaraas.com/api/v1`. The Go API must allow `https://convoza.andakaraas.com` as its exact credentialed CORS origin.
 
 ## Local commands
 

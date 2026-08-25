@@ -24,6 +24,9 @@ func TestLoadBindsEnvironmentAndAppliesDefaults(t *testing.T) {
 	if cfg.Firebase.ProjectID != "chat-project" {
 		t.Fatalf("expected the explicitly bound Firebase project, got %q", cfg.Firebase.ProjectID)
 	}
+	if cfg.Auth.SessionCookieName != "convoza_session" || cfg.Auth.SessionCookieMaxAge != 12*24*time.Hour || !cfg.Auth.SessionCookieSecure {
+		t.Fatalf("unexpected auth config: %#v", cfg.Auth)
+	}
 }
 
 func TestLoadRejectsInvalidSemanticValues(t *testing.T) {
@@ -36,6 +39,7 @@ func TestLoadRejectsInvalidSemanticValues(t *testing.T) {
 		{name: "missing project", key: "FIREBASE_PROJECT_ID", value: "", message: "FIREBASE_PROJECT_ID"},
 		{name: "firebase URL has no host", key: "FIREBASE_DATABASE_URL", value: "https:///database", message: "FIREBASE_DATABASE_URL"},
 		{name: "firebase URL has invalid scheme", key: "FIREBASE_DATABASE_URL", value: "ftp://chat.example.test", message: "must use http or https"},
+		{name: "session cookie lifetime too short", key: "AUTH_SESSION_COOKIE_MAX_AGE_SECONDS", value: "299", message: "AUTH_SESSION_COOKIE_MAX_AGE_SECONDS"},
 	}
 
 	for _, test := range tests {

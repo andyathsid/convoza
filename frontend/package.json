@@ -29,7 +29,6 @@
     "instantsearch.js": "^4.101.1",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
-    "next-firebase-auth-edge": "^1.12.0",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.4.3",
     "react": "19.2.4",

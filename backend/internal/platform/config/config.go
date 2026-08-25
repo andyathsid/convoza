@@ -17,6 +17,7 @@ type Config struct {
 	Server         Server
 	Firebase       Firebase
 	Search         Search
+	Auth           Auth
 	AllowedOrigins string
 }
 
@@ -35,6 +36,12 @@ type Search struct {
 	URL, APIKey string
 }
 
+type Auth struct {
+	SessionCookieName   string
+	SessionCookieMaxAge time.Duration
+	SessionCookieSecure bool
+}
+
 type environment struct {
 	ServerHost                 string `mapstructure:"SERVER_HOST"`
 	ServerPort                 int    `mapstructure:"SERVER_PORT"`
@@ -45,8 +52,11 @@ type environment struct {
 	FirebaseDatabaseURL        string `mapstructure:"FIREBASE_DATABASE_URL"`
 	FirebaseStorageBucket      string `mapstructure:"FIREBASE_STORAGE_BUCKET"`
 	AllowedOrigins             string `mapstructure:"ALLOWED_ORIGINS"`
-	MeiliURL                    string `mapstructure:"MEILI_URL"`
-	MeiliAPIKey                 string `mapstructure:"MEILI_API_KEY"`
+	AuthSessionCookieName      string `mapstructure:"AUTH_SESSION_COOKIE_NAME"`
+	AuthSessionCookieMaxAge    int    `mapstructure:"AUTH_SESSION_COOKIE_MAX_AGE_SECONDS"`
+	AuthSessionCookieSecure    bool   `mapstructure:"AUTH_SESSION_COOKIE_SECURE"`
+	MeiliURL                   string `mapstructure:"MEILI_URL"`
+	MeiliAPIKey                string `mapstructure:"MEILI_API_KEY"`
 }
 
 var supportedEnvironmentKeys = []string{
@@ -59,6 +69,9 @@ var supportedEnvironmentKeys = []string{
 	"FIREBASE_DATABASE_URL",
 	"FIREBASE_STORAGE_BUCKET",
 	"ALLOWED_ORIGINS",
+	"AUTH_SESSION_COOKIE_NAME",
+	"AUTH_SESSION_COOKIE_MAX_AGE_SECONDS",
+	"AUTH_SESSION_COOKIE_SECURE",
 	"MEILI_URL",
 	"MEILI_API_KEY",
 }
@@ -86,6 +99,9 @@ func load() (Config, error) {
 	v.SetDefault("SERVER_READ_TIMEOUT", defaultReadTimeoutSeconds)
 	v.SetDefault("SERVER_BODY_LIMIT_BYTES", 32*1024*1024)
 	v.SetDefault("ALLOWED_ORIGINS", "http://localhost:3000")
+	v.SetDefault("AUTH_SESSION_COOKIE_NAME", "convoza_session")
+	v.SetDefault("AUTH_SESSION_COOKIE_MAX_AGE_SECONDS", 12*24*60*60)
+	v.SetDefault("AUTH_SESSION_COOKIE_SECURE", true)
 
 	for _, key := range supportedEnvironmentKeys {
 		if err := v.BindEnv(key); err != nil {
@@ -115,6 +131,11 @@ func load() (Config, error) {
 			URL:    strings.TrimSpace(env.MeiliURL),
 			APIKey: strings.TrimSpace(env.MeiliAPIKey),
 		},
+		Auth: Auth{
+			SessionCookieName:   strings.TrimSpace(env.AuthSessionCookieName),
+			SessionCookieMaxAge: time.Duration(env.AuthSessionCookieMaxAge) * time.Second,
+			SessionCookieSecure: env.AuthSessionCookieSecure,
+		},
 		AllowedOrigins: strings.TrimSpace(env.AllowedOrigins),
 	}, nil
 }
@@ -127,6 +148,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.Search.Validate(); err != nil {
+		return err
+	}
+	if err := c.Auth.Validate(); err != nil {
 		return err
 	}
 	if c.AllowedOrigins == "" {
@@ -183,6 +207,16 @@ func (c Search) Validate() error {
 		return nil
 	}
 	return validateHTTPURL("MEILI_URL", c.URL)
+}
+
+func (c Auth) Validate() error {
+	if c.SessionCookieName == "" {
+		return fmt.Errorf("AUTH_SESSION_COOKIE_NAME is required")
+	}
+	if c.SessionCookieMaxAge < 5*time.Minute || c.SessionCookieMaxAge > 14*24*time.Hour {
+		return fmt.Errorf("AUTH_SESSION_COOKIE_MAX_AGE_SECONDS must be between 300 and 1209600")
+	}
+	return nil
 }
 
 func validateHTTPURL(name, value string) error {

@@ -13,10 +13,9 @@ import {
 } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { auth, googleProvider } from "@/lib/firebase";
-import { api } from "@/lib/api";
+import { api, clearApiSession, createApiSession } from "@/lib/api";
 import type { User } from "@/types/user";
 import { startPresence, stopPresence } from "../lib/presence-session";
-import { clearSessionCookie, setSessionCookie } from "../lib/session-cookie";
 
 // When "Create multiple accounts" is enabled in Firebase Auth, the top-level
 // .email on a FirebaseUser can be null. The real email lives in providerData.
@@ -46,10 +45,7 @@ export const useAuth = create<AuthState>((set) => ({
   signIn: async (email, password) => {
     if (!auth) throw new Error("Firebase not initialized");
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    const res = await api.post("/auth/sync", {
-      firebase_uid: cred.user.uid,
-    });
-    await setSessionCookie(cred.user);
+    const res = await createApiSession(cred.user);
     set({ user: res.user, firebaseUser: cred.user });
     // Auto-link pending Google credential (from account-exists-with-different-credential flow)
     const pending = useAuth.getState().pendingGoogleCredential;
@@ -87,12 +83,10 @@ export const useAuth = create<AuthState>((set) => ({
       throw err;
     }
     await sendEmailVerification(cred.user);
-    const res = await api.post("/auth/sync", {
-      firebase_uid: cred.user.uid,
+    const res = await createApiSession(cred.user, {
       username,
       avatar: "",
     });
-    await setSessionCookie(cred.user);
     set({ user: res.user, firebaseUser: cred.user });
     startPresence(res.user.id);
   },
@@ -104,12 +98,10 @@ export const useAuth = create<AuthState>((set) => ({
     //   throw new Error("An account with this Google profile has no email associated. Sign in with email/password instead and link the accounts.");
     // }
     console.log("Google sign-in successful, syncing with backend...", cred.user);
-    const res = await api.post("/auth/sync", {
-      firebase_uid: cred.user.uid,
+    const res = await createApiSession(cred.user, {
       username: cred.user.displayName || getFirebaseEmail(cred.user)?.split("@")[0] || "User",
       avatar: cred.user.photoURL || "",
     });
-    await setSessionCookie(cred.user);
     set({ user: res.user, firebaseUser: cred.user });
     startPresence(res.user.id);
   },
@@ -148,11 +140,11 @@ export const useAuth = create<AuthState>((set) => ({
   signOut: async () => {
     if (!auth) return;
     stopPresence();
-    // Clear the httpOnly session cookie FIRST. If this fails, we stop here
+    // Clear the backend-owned httpOnly session cookie FIRST. If this fails, we stop here
     // so the user stays fully authenticated and can retry. Proceeding with
     // firebaseSignOut after a failed cookie clear would leave the client
-    // signed out but the cookie still valid, causing proxy redirect loops.
-    await clearSessionCookie();
+    // signed out while the API session remains valid until it expires.
+    await clearApiSession();
     await firebaseSignOut(auth);
     set({ user: null, firebaseUser: null });
   },
@@ -165,10 +157,7 @@ export const useAuth = create<AuthState>((set) => ({
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const res = await api.post("/auth/verify");
-          // Refresh session cookie on page load (handles cookie expiry while
-          // Firebase session persists in IndexedDB).
-          await setSessionCookie(firebaseUser);
+          const res = await api.get("/auth/session");
           set({ user: res.user, firebaseUser, isLoading: false });
           startPresence(res.user.id);
         } catch {

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/andyathsid/backend/internal/domain"
 )
@@ -14,6 +15,8 @@ type Identity struct {
 type IdentityProviderProfile struct{ ProviderID, Email, DisplayName, PhotoURL string }
 type IdentityProvider interface {
 	VerifyIDToken(context.Context, string) (Identity, error)
+	CreateSessionCookie(context.Context, string, time.Duration) (string, error)
+	VerifySessionCookie(context.Context, string) (Identity, error)
 	GetUser(context.Context, string) (Identity, error)
 }
 

@@ -1,20 +1,51 @@
+import type { User as FirebaseUser } from "firebase/auth";
 import { auth } from "./firebase";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
-async function getHeaders(): Promise<HeadersInit> {
-  const user = auth?.currentUser;
-  const token = user ? await user.getIdToken() : "";
+export interface SessionProfile {
+  username?: string;
+  avatar?: string;
+  avatarPath?: string;
+}
+
+function getHeaders(): HeadersInit {
   return {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
-async function getFormHeaders(): Promise<HeadersInit> {
-  const user = auth?.currentUser;
-  const token = user ? await user.getIdToken() : "";
-  return token ? { Authorization: `Bearer ${token}` } : {};
+async function createSession(
+  firebaseUser: FirebaseUser,
+  profile?: SessionProfile
+) {
+  const token = await firebaseUser.getIdToken();
+  const response = await fetch(`${API_URL}/auth/session`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: profile ? JSON.stringify(profile) : undefined,
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+export async function createApiSession(
+  firebaseUser: FirebaseUser,
+  profile?: SessionProfile
+) {
+  return createSession(firebaseUser, profile);
+}
+
+export async function clearApiSession(): Promise<void> {
+  const response = await fetch(`${API_URL}/auth/session`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error(`Failed to clear API session: ${response.status}`);
 }
 
 function redirectToSignIn() {
@@ -31,19 +62,16 @@ async function fetchWithRetry(
   const res = await fetch(url, options);
 
   if (res.status === 401 && !retried) {
-    // Token might be expired. Force-refresh the Firebase ID token and retry once.
+    // The backend session may have expired while Firebase client auth persisted.
+    // Exchange a fresh ID token for a new API-only HTTP-only session, then retry.
     const user = auth?.currentUser;
     if (!user) {
       redirectToSignIn();
       throw new Error("Session expired");
     }
     try {
-      const newToken = await user.getIdToken(true);
-      const newHeaders = {
-        ...(options.headers as Record<string, string>),
-        Authorization: `Bearer ${newToken}`,
-      };
-      return fetchWithRetry(url, { ...options, headers: newHeaders }, true);
+      await createSession(user);
+      return fetchWithRetry(url, options, true);
     } catch {
       redirectToSignIn();
       throw new Error("Session expired");
@@ -56,14 +84,15 @@ async function fetchWithRetry(
 
 export const api = {
   async get(path: string) {
-    const res = await fetchWithRetry(`${API_URL}${path}`, { headers: await getHeaders() });
+    const res = await fetchWithRetry(`${API_URL}${path}`, { credentials: "include", headers: getHeaders() });
     return res.json();
   },
 
   async post(path: string, body?: unknown) {
     const res = await fetchWithRetry(`${API_URL}${path}`, {
       method: "POST",
-      headers: await getHeaders(),
+      credentials: "include",
+      headers: getHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     });
     return res.json();
@@ -72,7 +101,7 @@ export const api = {
   async postForm(path: string, body: FormData) {
     const res = await fetchWithRetry(`${API_URL}${path}`, {
       method: "POST",
-      headers: await getFormHeaders(),
+      credentials: "include",
       body,
     });
     return res.json();
@@ -81,7 +110,8 @@ export const api = {
   async put(path: string, body?: unknown) {
     const res = await fetchWithRetry(`${API_URL}${path}`, {
       method: "PUT",
-      headers: await getHeaders(),
+      credentials: "include",
+      headers: getHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     });
     return res.json();
@@ -90,7 +120,8 @@ export const api = {
   async delete(path: string) {
     const res = await fetchWithRetry(`${API_URL}${path}`, {
       method: "DELETE",
-      headers: await getHeaders(),
+      credentials: "include",
+      headers: getHeaders(),
     });
     return res.json();
   },

@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"io"
+	"time"
 
 	application "github.com/andyathsid/backend/internal/app"
 	"github.com/andyathsid/backend/internal/domain"
@@ -46,6 +47,12 @@ type fakeIdentityProvider struct {
 }
 
 func (f fakeIdentityProvider) VerifyIDToken(context.Context, string) (application.Identity, error) {
+	return f.identity, f.err
+}
+func (f fakeIdentityProvider) CreateSessionCookie(context.Context, string, time.Duration) (string, error) {
+	return "session-cookie", f.err
+}
+func (f fakeIdentityProvider) VerifySessionCookie(context.Context, string) (application.Identity, error) {
 	return f.identity, f.err
 }
 func (f fakeIdentityProvider) GetUser(context.Context, string) (application.Identity, error) {

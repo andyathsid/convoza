@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/andyathsid/backend/internal/domain"
 )
@@ -14,6 +15,12 @@ type fakeIdentity struct {
 }
 
 func (f fakeIdentity) VerifyIDToken(ctx context.Context, token string) (Identity, error) {
+	return f.verify(ctx, token)
+}
+func (f fakeIdentity) CreateSessionCookie(context.Context, string, time.Duration) (string, error) {
+	return "session-cookie", nil
+}
+func (f fakeIdentity) VerifySessionCookie(ctx context.Context, token string) (Identity, error) {
 	return f.verify(ctx, token)
 }
 func (f fakeIdentity) GetUser(context.Context, string) (Identity, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	models "github.com/andyathsid/backend/internal/domain"
 )
@@ -62,6 +63,34 @@ func (s *AuthService) VerifyAndSyncUser(ctx context.Context, idToken string, opt
 	if err != nil {
 		return nil, Unauthenticated("invalid or expired Firebase token", err)
 	}
+	return s.syncIdentity(ctx, token, opts)
+}
+
+// CreateSession verifies the Firebase ID token, synchronizes the user's profile,
+// and creates a Firebase session cookie for the backend API.
+func (s *AuthService) CreateSession(ctx context.Context, idToken string, opts *AuthSyncOpts, expiresIn time.Duration) (*models.User, string, error) {
+	user, err := s.VerifyAndSyncUser(ctx, idToken, opts)
+	if err != nil {
+		return nil, "", err
+	}
+	cookie, err := s.identity.CreateSessionCookie(ctx, idToken, expiresIn)
+	if err != nil {
+		return nil, "", Unauthenticated("could not create Firebase session", err)
+	}
+	return user, cookie, nil
+}
+
+// VerifySession validates a backend API session cookie and returns the
+// synchronized application user.
+func (s *AuthService) VerifySession(ctx context.Context, cookie string) (*models.User, error) {
+	identity, err := s.identity.VerifySessionCookie(ctx, cookie)
+	if err != nil {
+		return nil, Unauthenticated("invalid or expired session", err)
+	}
+	return s.syncIdentity(ctx, identity, nil)
+}
+
+func (s *AuthService) syncIdentity(ctx context.Context, token Identity, opts *AuthSyncOpts) (*models.User, error) {
 
 	// Try to get existing user
 	existingUser, err := s.users.GetByID(ctx, token.UID)

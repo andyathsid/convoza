@@ -5,8 +5,10 @@ import (
 )
 
 // PublicRoutes func for describe group of public routes.
-func PublicRoutes(a *fiber.App, auth *AuthController) {
+func PublicRoutes(a *fiber.App, auth *AuthController, allowedOrigins string) {
 	route := a.Group("/api/v1")
-	route.Post("/auth/sync", auth.SyncUser)
-	route.Post("/auth/verify", auth.VerifyUser)
+	originProtected := RequireTrustedOrigin(allowedOrigins)
+	route.Post("/auth/session", originProtected, auth.CreateSession)
+	route.Get("/auth/session", auth.CurrentSession)
+	route.Delete("/auth/session", originProtected, auth.DeleteSession)
 }

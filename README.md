@@ -116,5 +116,5 @@ Implementation handoffs are collected in [docs/handoff](docs/handoff/), and proj
 
 - **Service account missing:** add the JSON file at both required paths and confirm each local environment file points to `./firebase-service-account.json`.
 - **Firebase values differ:** frontend web-app values and backend Firebase project settings must refer to the same Firebase project.
-- **Browser reports a CORS error:** use `http://localhost:3001` for the frontend and keep `ALLOWED_ORIGINS` set to that address in `backend/.env`.
+- **Browser reports a CORS error:** use `http://localhost:3001` for local development and keep `ALLOWED_ORIGINS` set to that address in `backend/.env`. Production must use the exact frontend origin, with `AUTH_SESSION_COOKIE_SECURE=true`.
 - **Meilisearch is unavailable:** confirm that port 7700 is free, `MEILI_API_KEY` is set in `backend/.env`, and the container is healthy.

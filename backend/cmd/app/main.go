@@ -60,12 +60,14 @@ func run(ctx context.Context) error {
 		Identity: firebaseClients.Identity, Search: indexer,
 		Membership: firebaseClients.Membership, Storage: firebaseClients.Storage,
 	})
-	authController := transport.NewAuthController(services.Auth)
+	authController := transport.NewAuthController(services.Auth, transport.SessionCookieConfig{
+		Name: cfg.Auth.SessionCookieName, MaxAge: cfg.Auth.SessionCookieMaxAge, Secure: cfg.Auth.SessionCookieSecure,
+	})
 	server := fiber.New(transport.FiberConfig(cfg.Server.ReadTimeout, cfg.Server.BodyLimit))
 	transport.FiberMiddleware(server, cfg.AllowedOrigins)
 	transport.SwaggerRoute(server)
-	transport.PublicRoutes(server, authController)
-	transport.PrivateRoutes(server, authController, transport.NewChatController(services.Chat), transport.NewMessageController(services.Message), firebaseClients.Identity)
+	transport.PublicRoutes(server, authController, cfg.AllowedOrigins)
+	transport.PrivateRoutes(server, authController, transport.NewChatController(services.Chat), transport.NewMessageController(services.Message), firebaseClients.Identity, cfg.Auth.SessionCookieName, cfg.AllowedOrigins)
 	transport.NotFoundRoute(server)
 	return serve(server, fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port))
 }

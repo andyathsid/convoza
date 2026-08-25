@@ -23,11 +23,16 @@ FIREBASE_SERVICE_ACCOUNT_PATH=./firebase-service-account.json
 FIREBASE_DATABASE_URL=https://your-project-default-rtdb.your-region.firebasedatabase.app
 FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
 ALLOWED_ORIGINS=http://localhost:3001
+AUTH_SESSION_COOKIE_NAME=convoza_session
+AUTH_SESSION_COOKIE_MAX_AGE_SECONDS=1036800
+AUTH_SESSION_COOKIE_SECURE=false
 MEILI_URL=http://localhost:7700
 MEILI_API_KEY=
 ```
 
 Use `MEILI_API_KEY` as the privileged backend key; the development Compose stack also uses it as Meilisearch's master key. `SERVER_READ_TIMEOUT` is measured in seconds. Firebase-only operational commands require `FIREBASE_PROJECT_ID` and `FIREBASE_SERVICE_ACCOUNT_PATH`; commands using presence also require the Realtime Database URL.
+
+The browser exchanges its Firebase ID token at `POST /api/v1/auth/session`; the Go API returns a host-only, HTTP-only Firebase session cookie and protects all other API routes with it. In production set `ALLOWED_ORIGINS=https://app.domain.com` and `AUTH_SESSION_COOKIE_SECURE=true`.
 
 ## Local commands
 

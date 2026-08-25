@@ -146,12 +146,12 @@ func privateTestServer(users domain.UserRepository, messages domain.MessageRepos
 	chatService := application.NewChatService(users, nil, search, nil, fakeObjectStore{})
 	messageService := application.NewMessageService(users, messages, search, fakeObjectStore{})
 	server := fiber.New()
-	PrivateRoutes(server, NewAuthController(authService), NewChatController(chatService), NewMessageController(messageService), identity)
+	PrivateRoutes(server, NewAuthController(authService, testSessionCookieConfig()), NewChatController(chatService), NewMessageController(messageService), identity, testSessionCookieName, "https://app.example.test")
 	return server, chatService, messageService
 }
 
 func authenticatedRequest(method, path string, body io.Reader) *http.Request {
 	request := httptest.NewRequest(method, path, body)
-	request.Header.Set("Authorization", "Bearer valid-token")
+	request.Header.Set("Cookie", testSessionCookieName+"=session-cookie")
 	return request
 }

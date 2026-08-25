@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
@@ -81,10 +82,26 @@ func (a authAdapter) VerifyIDToken(ctx context.Context, value string) (applicati
 	if err != nil {
 		return application.Identity{}, err
 	}
+	return identityFromToken(token), nil
+}
+
+func (a authAdapter) CreateSessionCookie(ctx context.Context, idToken string, expiresIn time.Duration) (string, error) {
+	return a.client.SessionCookie(ctx, idToken, expiresIn)
+}
+
+func (a authAdapter) VerifySessionCookie(ctx context.Context, value string) (application.Identity, error) {
+	token, err := a.client.VerifySessionCookieAndCheckRevoked(ctx, value)
+	if err != nil {
+		return application.Identity{}, err
+	}
+	return identityFromToken(token), nil
+}
+
+func identityFromToken(token *auth.Token) application.Identity {
 	identity := application.Identity{UID: token.UID}
 	identity.Email, _ = token.Claims["email"].(string)
 	identity.Name, _ = token.Claims["name"].(string)
-	return identity, nil
+	return identity
 }
 func (a authAdapter) GetUser(ctx context.Context, uid string) (application.Identity, error) {
 	user, err := a.client.GetUser(ctx, uid)
